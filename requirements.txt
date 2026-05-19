@@ -1,0 +1,9 @@
+pandas
+pyarrow
+fastparquet
+xgboost
+lightgbm
+scikit-learn
+flask
+flask-cors
+numpy
