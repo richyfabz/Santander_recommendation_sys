@@ -10,7 +10,7 @@ venv/
 data/raw/
 data/parquet/
 data/processed/
-
+artifacts/
 # Trained models
 models/*.json
 models/*.bin
