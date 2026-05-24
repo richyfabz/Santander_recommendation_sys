@@ -1,255 +1,270 @@
-// AboutPage.jsx - A React component that serves as the "About" page for the Santander Product Recommendation project. 
-// This page provides an overview of the project, including a description of the pipeline stages, 
-// the technology stack used, and key results achieved. The component uses inline styles defined 
-// in a JavaScript object to style the various sections of the page, such as the disclaimer, 
-// pipeline stages, technology stack, and key results. The page also includes a call-to-action 
-// section that encourages users to try out the recommendation system by entering a customer ID.
-import { Link } from 'react-router-dom'
+// AboutPage — project overview, pipeline cards, tech stack
+import { motion } from 'framer-motion';
 
-// The AboutPage component renders a page with information about the Santander Product Recommendation project,
-// including a disclaimer, an overview of the pipeline stages, the technology stack used, and key results achieved. 
-// The component uses inline styles defined in a JavaScript object to style the various sections of the page, and 
-// includes a call-to-action section that encourages users to try out the recommendation system by 
-// entering a customer ID.
+const fadeUp = {
+  hidden: { opacity: 0, y: 28 },
+  show:   { opacity: 1, y: 0,
+    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } },
+};
 
-const PIPELINE_STAGES = [
-  { nb: 'NB 01', title: 'Data ingestion',         desc: '13.3M rows from train_ver2.csv streamed via chunked pandas and persisted to Parquet. Schema enforced — ncodpers int32, product cols int8.' },
-  { nb: 'NB 02', title: 'Cohort selection',        desc: '3-month active window (Mar–May 2016). ~600k customers present in all three months retained. Cohort confirmed representative of full dataset.' },
-  { nb: 'NB 03', title: 'Target engineering',      desc: 'ΔP difference vector computed per customer per month. Net-new product additions (ΔP=1) become training targets. Multi-add rows flattened — one row per new product.' },
-  { nb: 'NB 04', title: 'Feature engineering',     desc: 'Lag-1 and lag-2 product ownership columns appended (48 lag columns). product_velocity, total_products_held_lag_1 computed. Renta imputed via province median.' },
-  { nb: 'NB 05', title: 'Split & formatting',      desc: 'Dataset shuffled (seed=42) before 80/20 split to break target-index sorting from NB03. Stratification confirmed: 21 classes in train, 18 in val. XGBoost DMatrix built with sample weights.' },
-  { nb: 'NB 06', title: 'Model training',          desc: 'XGBoost multi:softprob, 24 classes, eta=0.05, max_depth=6. Early stopping at round 476. Best val log-loss: 1.138. Training time: 11 minutes on CPU.' },
-  { nb: 'NB 07', title: 'Evaluation',              desc: 'MAP@7 = 0.699 · AUC-ROC = 0.894 · Catalog coverage = 55.4%. All three deployment gates passed. Metrics logged to MLflow.' },
-  { nb: 'NB 08', title: 'Monitoring simulation',   desc: 'PSI and KS drift detectors validated on synthetic economic shift scenario. CTR trigger fired at 40% corruption. Fairness gap computed across age bands.' },
-]
+const stagger = { show: { transition: { staggerChildren: 0.09 } } };
 
-const TECH_STACK = [
-  { cat: 'ML pipeline',  items: ['XGBoost', 'scikit-learn', 'pandas', 'NumPy', 'FAISS', 'MLflow'] },
-  { cat: 'Backend',      items: ['Flask', 'Flask-SQLAlchemy', 'Flask-CORS', 'SQLite', 'Gunicorn'] },
-  { cat: 'Frontend',     items: ['React 18', 'React Router v6', 'Axios'] },
-  { cat: 'Data',         items: ['Santander Kaggle competition dataset', 'Parquet', 'Apache Arrow'] },
-]
+const NOTEBOOKS = [
+  { nb: 'NB 01', title: 'Data Ingestion',
+    desc: '13.3M rows from train_ver2.csv streamed via chunked pandas and persisted to Parquet. Schema enforced — ncodpers int32, product cols Int8.',
+    color: 'var(--pink-400)' },
+  { nb: 'NB 02', title: 'Cohort Selection',
+    desc: '3-month active window (Mar–May 2016). 922k customers present in all three months retained. Cohort confirmed representative of full dataset.',
+    color: 'var(--blue-400)' },
+  { nb: 'NB 03', title: 'Target Engineering',
+    desc: 'ΔP difference vector computed per customer per month. Net-new product additions (ΔP=1) become training targets. One row per new product.',
+    color: 'var(--green-400)' },
+  { nb: 'NB 04', title: 'Feature Engineering',
+    desc: 'Lag-1 and Lag-2 product ownership columns appended (48 lag columns). product_velocity and total_products_held_lag_1 computed. Renta imputed via province median.',
+    color: 'var(--amber-400)' },
+  { nb: 'NB 05', title: 'Split & Formatting',
+    desc: 'Dataset shuffled (seed=42) before 80/20 split. Stratification confirmed: 21 classes in train, 18 in val. XGBoost DMatrix built with sample weights.',
+    color: 'var(--pink-300)' },
+  { nb: 'NB 06', title: 'Model Training',
+    desc: 'XGBoost multi:softprob, 24 classes, eta=0.05, max_depth=6. Early stopping at round 476. Best val log-loss: 1.138. Training time: 11 min on CPU.',
+    color: 'var(--blue-300)' },
+  { nb: 'NB 07', title: 'Evaluation',
+    desc: 'MAP@7 = 0.699 · AUC-ROC = 0.894 · Catalog coverage = 55.4%. All three deployment gates passed. Metrics logged to MLflow.',
+    color: 'var(--green-400)' },
+  { nb: 'NB 08', title: 'Monitoring Simulation',
+    desc: 'PSI and KS drift detectors validated on synthetic economic shift scenario. CTR trigger fired at 40% corruption. Fairness gap computed across age bands.',
+    color: 'var(--amber-400)' },
+];
 
-// The AboutPage component is exported as the default export of this module, 
-// allowing it to be imported and used in other parts of the application, such as in the 
-// routing setup defined in App.jsx.
+const STACK = [
+  { name: 'XGBoost',       role: 'Gradient boosting classifier',   color: 'var(--pink-400)'  },
+  { name: 'Flask',         role: 'REST API serving layer',          color: 'var(--blue-400)'  },
+  { name: 'React 18',      role: 'Frontend UI framework',           color: 'var(--blue-300)'  },
+  { name: 'Pandas',        role: 'Data manipulation & feature eng', color: 'var(--green-400)' },
+  { name: 'PyArrow',       role: 'Parquet columnar storage',        color: 'var(--amber-400)' },
+  { name: 'MLflow',        role: 'Experiment tracking',             color: 'var(--pink-300)'  },
+  { name: 'Framer Motion', role: 'UI animation library',            color: 'var(--blue-400)'  },
+  { name: 'Scikit-learn',  role: 'Preprocessing & metrics',         color: 'var(--green-400)' },
+];
+
 export default function AboutPage() {
   return (
-    <div className="page">
-      <div className="page-hero">
-        <h1>About this project</h1>
-        <p>
-          An end-to-end bank product recommendation system built on the{' '}
-          <strong>Santander Product Recommendation Kaggle competition dataset</strong>.
-          This is a personal ML portfolio project not affiliated with or endorsed by Santander Group.
-        </p>
-      </div>
+    <main style={{ background: 'var(--bg-page)', minHeight: '100vh' }}>
 
-      {/* DISCLAIMER  */}
-      <div style={styles.disclaimer} role="note">
-        <span style={styles.disclaimerIcon}>ℹ</span>
-        <p style={styles.disclaimerText}>
-          This project uses the publicly available Santander dataset from Kaggle for educational
-          and portfolio purposes only. It is not affiliated with, endorsed by, or representative of
-          Banco Santander S.A. or any of its subsidiaries.
-        </p>
-      </div>
+      {/* ── Hero ── */}
+      <section style={styles.hero}>
+        <div className="grid-bg" />
+        <div style={styles.orb} />
+        <div className="container" style={{ position: 'relative' }}>
+          <motion.div
+            variants={stagger} initial="hidden" animate="show"
+          >
+            <motion.div variants={fadeUp}>
+              <span className="badge">About this project</span>
+            </motion.div>
+            <motion.h1 variants={fadeUp} style={styles.title}>
+              About <span className="gradient-text">RecSys</span>
+            </motion.h1>
+            <motion.p variants={fadeUp} style={styles.sub}>
+              An end-to-end bank product recommendation system built on the{' '}
+              <span style={{ color: 'var(--pink-300)' }}>
+                Santander Product Recommendation Kaggle competition dataset.
+              </span>{' '}
+              This is a personal ML portfolio project not affiliated with
+              or endorsed by Santander Group.
+            </motion.p>
 
-      {/* PIPELINE STAGES  */}
-      <section style={{ marginBottom: 40 }} aria-label="Pipeline stages">
-        <h2 style={styles.sectionTitle}>Pipeline 8 notebook stages</h2>
-        <div style={styles.pipelineGrid}>
-          {PIPELINE_STAGES.map(({ nb, title, desc }, i) => (
-            <div
-              key   = {nb}
-              className="card"
-              style = {{
-                borderTop  : '3px solid #A50034',
-                animation  : `fadeUp 0.3s ease ${i * 60}ms both`,
+            {/* Disclaimer */}
+            <motion.div variants={fadeUp} style={styles.disclaimer}>
+              <span style={styles.disclaimerIcon}>ℹ️</span>
+              <p style={styles.disclaimerText}>
+                This project uses the publicly available Santander dataset
+                from Kaggle for educational and portfolio purposes only.
+                Not affiliated with Banco Santander S.A.
+              </p>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── Pipeline notebooks ── */}
+      <section className="page-section container">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+        >
+          <h2 className="section-title">
+            Pipeline — <span className="gradient-text">8 Notebook Stages</span>
+          </h2>
+          <p className="section-subtitle">
+            Every stage is documented, cell-by-cell, with markdown explanations
+            and detailed code comments.
+          </p>
+        </motion.div>
+
+        <motion.div
+          style={styles.nbGrid}
+          variants={stagger}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.1 }}
+        >
+          {NOTEBOOKS.map(({ nb, title, desc, color }) => (
+            <motion.div
+              key={nb}
+              variants={fadeUp}
+              whileHover={{
+                y: -5, scale: 1.015,
+                transition: { type: 'spring', stiffness: 280, damping: 18 },
               }}
+              className="card"
+              style={styles.nbCard}
             >
-              <div style={styles.nbBadge}>{nb}</div>
-              <h3 style={styles.stageTitle}>{title}</h3>
-              <p style={styles.stageDesc}>{desc}</p>
-            </div>
+              <div style={{ ...styles.nbAccent, background: color }} />
+              <span style={{ ...styles.nbBadge, color, borderColor: color + '40' }}>
+                {nb}
+              </span>
+              <h3 style={styles.nbTitle}>{title}</h3>
+              <p style={styles.nbDesc}>{desc}</p>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </section>
 
-      {/* TECH STACK  */}
-      <section style={{ marginBottom: 40 }} aria-label="Technology stack">
-        <h2 style={styles.sectionTitle}>Technology stack</h2>
-        <div style={styles.techGrid}>
-          {TECH_STACK.map(({ cat, items }) => (
-            <div key={cat} className="card">
-              <h3 style={styles.techCat}>{cat}</h3>
-              <div style={styles.techItems}>
-                {items.map(item => (
-                  <span key={item} style={styles.techTag}>{item}</span>
-                ))}
-              </div>
-            </div>
-          ))}
+      {/* ── Tech stack ── */}
+      <section style={styles.stackSection}>
+        <div className="divider" />
+        <div className="container" style={{ padding: '64px 24px' }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="section-title">Tech Stack</h2>
+            <p className="section-subtitle">
+              Every library chosen for a specific engineering reason.
+            </p>
+          </motion.div>
+
+          <motion.div
+            style={styles.stackGrid}
+            variants={stagger}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.2 }}
+          >
+            {STACK.map(({ name, role, color }) => (
+              <motion.div
+                key={name}
+                variants={fadeUp}
+                whileHover={{
+                  scale: 1.04, borderColor: color,
+                  transition: { duration: 0.15 },
+                }}
+                style={styles.stackCard}
+              >
+                <span style={{ ...styles.stackName, color }}>{name}</span>
+                <span style={styles.stackRole}>{role}</span>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
+        <div className="divider" />
       </section>
 
-      {/* KEY RESULTS */}
-      <section className="card" style={{ marginBottom: 40 }} aria-label="Key results">
-        <h2 style={styles.sectionTitle}>Key results</h2>
-        <div style={styles.resultsGrid}>
-          {[
-            { metric: 'MAP@7',          value: '0.699',  context: 'vs 0.028 threshold' },
-            { metric: 'AUC-ROC',        value: '0.894',  context: 'macro one-vs-rest' },
-            { metric: 'Coverage',       value: '55.4%',  context: '13 of 24 products' },
-            { metric: 'Training rows',  value: '33,870', context: 'product addition events' },
-            { metric: 'Early stop',     value: 'Rd. 476',context: 'of 500 max rounds' },
-            { metric: 'Val log-loss',   value: '1.138',  context: 'best iteration' },
-          ].map(({ metric, value, context }) => (
-            <div key={metric} style={styles.resultItem}>
-              <div style={styles.resultValue}>{value}</div>
-              <div style={styles.resultMetric}>{metric}</div>
-              <div style={styles.resultContext}>{context}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA */}
-      <div style={styles.cta}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
-          Ready to try it?
-        </h2>
-        <p style={{ fontSize: 14, color: '#6B6B65', marginBottom: 20 }}>
-          Enter a customer ID and see the XGBoost model generate recommendations in real time
-        </p>
-        <Link to="/search" className="btn-red">
-          Try a recommendation →
-        </Link>
-      </div>
-
-    </div>
-  )
+    </main>
+  );
 }
 
-// Styles for the AboutPage component, defined as a JavaScript object. 
-// These styles are applied inline to the respective elements in the JSX. 
-// The styles include layout properties such as display, flexbox settings, padding, 
-// and colors to create a visually appealing and responsive about page that effectively 
-// presents the project's pipeline stages, technology stack, and key results.
 const styles = {
+  hero: {
+    position: 'relative', overflow: 'hidden',
+    padding: '80px 0 72px',
+    background: 'var(--dark-800)',
+  },
+  orb: {
+    position: 'absolute', top: -100, right: -60,
+    width: 400, height: 400, borderRadius: '50%',
+    background: 'radial-gradient(circle, rgba(240,71,138,0.12) 0%, transparent 65%)',
+    pointerEvents: 'none',
+  },
+  title: {
+    fontFamily: 'var(--font-display)',
+    fontSize: 'clamp(2.2rem, 4vw, 3.6rem)',
+    fontWeight: 800, lineHeight: 1.1,
+    color: 'var(--text-primary)',
+    margin: '20px 0 16px',
+    letterSpacing: '-0.02em',
+  },
+  sub: {
+    fontSize: '1rem', color: 'var(--text-muted)',
+    maxWidth: 620, lineHeight: 1.75, marginBottom: 28,
+  },
   disclaimer: {
-    display     : 'flex',
-    gap         : 12,
-    padding     : '14px 16px',
-    borderRadius: 10,
-    background  : 'rgba(165,0,52,0.04)',
-    border      : '1px solid rgba(165,0,52,0.15)',
-    marginBottom: 32,
+    display: 'flex', gap: 14, alignItems: 'flex-start',
+    background: 'rgba(240,71,138,0.06)',
+    border: '1px solid rgba(240,71,138,0.18)',
+    borderRadius: 'var(--radius-md)',
+    padding: '16px 20px', maxWidth: 620,
   },
-  disclaimerIcon: {
-    fontSize  : 16,
-    color     : '#A50034',
-    flexShrink: 0,
-    marginTop : 1,
-  },
+  disclaimerIcon: { fontSize: '1rem', flexShrink: 0, marginTop: 1 },
   disclaimerText: {
-    fontSize: 13,
-    color   : '#3D3D3A',
-    lineHeight: 1.6,
+    fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.65,
   },
-  sectionTitle: {
-    fontSize    : 20,
-    fontWeight  : 700,
-    letterSpacing: '-0.01em',
-    marginBottom: 16,
+
+  /* Notebooks */
+  nbGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+    gap: 20,
   },
-  pipelineGrid: {
-    display             : 'grid',
-    gridTemplateColumns : 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap                 : 12,
+  nbCard: {
+    padding: '24px', position: 'relative', overflow: 'hidden',
+  },
+  nbAccent: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    height: 3, borderRadius: '20px 20px 0 0',
   },
   nbBadge: {
-    fontSize    : 10,
-    fontWeight  : 700,
-    color       : '#A50034',
-    background  : 'rgba(165,0,52,0.08)',
-    padding     : '3px 8px',
-    borderRadius: 4,
-    display     : 'inline-block',
-    marginBottom: 8,
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase',
+    display: 'inline-block',
+    fontSize: '0.72rem', fontWeight: 800,
+    letterSpacing: '0.1em',
+    border: '1px solid', borderRadius: 99,
+    padding: '2px 10px', marginBottom: 12,
+    fontFamily: 'var(--font-display)',
   },
-  stageTitle: {
-    fontSize    : 14,
-    fontWeight  : 700,
-    color       : '#1A1A18',
-    marginBottom: 6,
+  nbTitle: {
+    fontFamily: 'var(--font-display)',
+    fontSize: '1rem', fontWeight: 700,
+    color: 'var(--text-primary)', marginBottom: 8,
   },
-  stageDesc: {
-    fontSize : 12,
-    color    : '#6B6B65',
-    lineHeight: 1.65,
+  nbDesc: {
+    fontSize: '0.83rem', color: 'var(--text-muted)', lineHeight: 1.68,
   },
-  techGrid: {
-    display             : 'grid',
-    gridTemplateColumns : 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap                 : 12,
+
+  /* Stack */
+  stackSection: { background: 'var(--dark-800)' },
+  stackGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+    gap: 16,
   },
-  techCat: {
-    fontSize    : 13,
-    fontWeight  : 700,
-    color       : '#A50034',
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
+  stackCard: {
+    display: 'flex', flexDirection: 'column', gap: 6,
+    padding: '20px',
+    background: 'var(--dark-700)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-md)',
+    transition: 'border-color 150ms ease, transform 150ms ease',
+    cursor: 'default',
   },
-  techItems: {
-    display : 'flex',
-    flexWrap: 'wrap',
-    gap     : 6,
+  stackName: {
+    fontFamily: 'var(--font-display)',
+    fontSize: '1rem', fontWeight: 700,
   },
-  techTag: {
-    fontSize    : 12,
-    padding     : '4px 10px',
-    borderRadius: 6,
-    background  : '#F4F3EF',
-    color       : '#3D3D3A',
-    fontWeight  : 500,
+  stackRole: {
+    fontSize: '0.8rem', color: 'var(--text-muted)',
   },
-  resultsGrid: {
-    display             : 'grid',
-    gridTemplateColumns : 'repeat(auto-fit, minmax(140px, 1fr))',
-    gap                 : 12,
-  },
-  resultItem: {
-    padding     : '14px 16px',
-    background  : '#FFF5F7',
-    borderRadius: 10,
-    border      : '1px solid rgba(165,0,52,0.1)',
-  },
-  resultValue: {
-    fontSize    : 22,
-    fontWeight  : 800,
-    color       : '#A50034',
-    letterSpacing: '-0.02em',
-    marginBottom: 3,
-  },
-  resultMetric: {
-    fontSize  : 13,
-    fontWeight: 600,
-    color     : '#1A1A18',
-    marginBottom: 2,
-  },
-  resultContext: {
-    fontSize: 11,
-    color   : '#9A9890',
-  },
-  cta: {
-    textAlign   : 'center',
-    padding     : '40px 24px',
-    background  : '#fff',
-    borderRadius: 16,
-    border      : '1px solid rgba(0,0,0,0.07)',
-  },
-}
+};
