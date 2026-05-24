@@ -1,0 +1,393 @@
+/* Application-wide core resets and typographic settings variables */
+.abisola-style-root {
+    background-color: #0a0a0c;
+    color: #f3f4f6;
+    min-height: 100vh;
+    font-family: system-ui, sans-serif;
+    letter-spacing: -0.01em;
+}
+
+/* Structural Navigation Bar layouts */
+.navbar-container {
+    border-bottom: 1px solid #1f2937;
+    padding: 1.5rem 3rem;
+    background-color: #0d0d11;
+}
+/* The inner wrapper centers the content and provides consistent spacing, while the flex layout ensures the logo and status indicator are aligned and spaced appropriately. */
+.nav-inner {
+    max-width: 1300px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Visual logo components and indicator flags */
+.brand-badge {
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: 0.08em;
+}
+/* The red dot in the logo adds a pop of color and draws attention, reinforcing brand identity. */
+.brand-dot {
+    width: 6px;
+    height: 6px;
+    background-color: #ec1c24;
+    border-radius: 50%;
+}
+/* System status indicators use color coding and animation to provide immediate visual feedback on the health
+ of the deployed model, making it easy for users to quickly assess whether everything is nominal or if there 
+ are drift alerts that need attention. */
+.system-status-indicator {
+    font-family: monospace;
+    font-size: 0.75rem;
+    padding: 6px 14px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+/* Color coding for nominal status */
+.system-status-indicator.is-nominal {
+    background-color: rgba(16, 185, 129, 0.08);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+/* Animation configuration highlighting live data drift alerts */
+.system-status-indicator.is-drifted {
+    background-color: rgba(239, 68, 68, 0.08);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    animation: pulse-drift 2s infinite ease-in-out;
+}
+
+/* Main dashboard grid frameworks */
+.workspace-wrapper {
+    max-width: 1350px;
+    margin: 3rem auto;
+    padding: 0 3rem;
+    box-sizing: border-box;
+}
+
+/* Input form layouts and controls */
+.input-flex-row {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Minimalistic dark-themed input and button styles for the dashboard's interactive elements, 
+designed to blend seamlessly with the overall aesthetic while ensuring usability and clear affordance
+ for user actions. */
+.minimal-dark-input {
+    flex: 1;
+    background-color: #121217;
+    border: 1px solid #272732;
+    color: #fff;
+    padding: 1rem 1.5rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+/* The button's bold typography and contrasting colors make
+ it stand out as a primary call-to-action, while the rounded corners 
+ and padding enhance its clickability and visual appeal. */
+.minimal-dark-button {
+    background-color: #ffffff;
+    color: #000000;
+    font-weight: 600;
+    border: none;
+    padding: 0 2rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* Premium dashboard specific layout grids and structural blocks, 
+designed to organize complex information in a clear and digestible manner,
+ while maintaining a cohesive visual hierarchy that guides the user's attention through the various 
+ sections of the dashboard. */
+.premium-dashboard-grid {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 3rem;
+    align-items: start;
+}
+/* The left meta rail is structured as a vertical stack of informational cards, 
+with consistent spacing to ensure readability and a clean layout. */
+.left-meta-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Content panels cards structural blocks */
+.premium-content-card {
+    background-color: #121217;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 1.75rem;
+}
+
+/* The card top meta section is designed to provide a clear and concise header for each content card,
+ with a title on the left and a contextual tag on the right. The use of uppercase text and a 
+ muted color for the title helps to establish a visual hierarchy, while the monospace font adds a
+  technical feel that aligns with the dashboard's theme. */
+.card-top-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #272732;
+    padding-bottom: 1rem;
+    margin-bottom: 1.25rem;
+}
+/* The card top meta section is designed to provide a clear and concise header for each content card, with a title on the left and a contextual tag on the right. The use of uppercase text and a muted color for the title helps to establish a visual hierarchy, while the monospace font adds a technical feel that aligns with the dashboard's theme. */
+.card-top-meta h4 {
+    margin: 0;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #9ca3af;
+    font-family: monospace;
+}
+
+/* The features list is styled as a vertical stack of labeled values, 
+with a clear distinction between the feature names and their corresponding values. 
+The use of different font weights and colors helps to create a visual hierarchy, 
+making it easy for users to quickly scan and understand the information presented. */
+.features-inner-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+/* The feature item box uses a flex layout to position the feature label on the left and 
+its value on the right, creating a clean and organized presentation of key metrics or attributes. T
+he use of a muted color for the labels and a brighter color for the values helps to draw attention to the important information while maintaining readability. */
+.feature-item-box {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+}
+
+/* The feature label is styled with a muted color to differentiate it from the value,
+ which is given more visual weight through a brighter color and increased font weight.
+  This design choice helps users quickly identify and focus on the key data points being presented. */
+.feature-lbl {
+    color: #9ca3af;
+}
+
+.feature-val {
+    font-weight: 500;
+    color: #fff;
+}
+
+.feature-val-highlight {
+    font-weight: 700;
+    color: #ef4444;
+    font-family: monospace;
+}
+
+/* Profile tag layout chips indicators */
+.holdings-stack-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.minimal-holding-tag {
+    background-color: #1c1c24;
+    border: 1px solid #272732;
+    color: #d1d5db;
+    font-size: 0.8rem;
+    padding: 6px 12px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dot-prefix {
+    width: 4px;
+    height: 4px;
+    background-color: #3b82f6;
+    border-radius: 50%;
+}
+
+.gate-card-accent {
+    border-left: 3px solid #10b981;
+}
+
+.verification-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 1.5rem;
+}
+
+.gate-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    font-family: monospace;
+}
+
+.gate-status-pill {
+    color: #10b981;
+    font-weight: 700;
+}
+
+.deployment-approved-footer {
+    text-align: center;
+    border-top: 1px solid #272732;
+    padding-top: 1rem;
+    font-family: monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* Right inference stream probability rows rendering layouts */
+.right-inference-stream {
+    background-color: #121217;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 2.5rem;
+}
+
+.stream-intro {
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid #272732;
+    padding-bottom: 1.25rem;
+}
+
+.stream-intro h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+.stream-intro p {
+    margin: 0;
+    color: #9ca3af;
+    font-size: 0.9rem;
+}
+
+.inference-cards-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.premium-inference-row-card {
+    display: flex;
+    gap: 1.75rem;
+    padding: 1.5rem;
+    border-radius: 6px;
+    background-color: #171721;
+    border: 1px solid #272732;
+}
+
+.rank-indicator-node {
+    font-family: monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #4b5563;
+}
+
+.product-details-content {
+    flex: 1;
+}
+
+.product-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 0.5rem;
+}
+
+.product-title-row h5 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.category-meta-tag {
+    font-family: monospace;
+    font-size: 0.7 glamorous;
+    background-color: #242433;
+    color: #9ca3af;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.product-desc-text {
+    margin: 0 0 1.25rem 0;
+    color: #9ca3af;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+/* Dynamic progress trackers bar display parameters styling elements */
+.probability-progress-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.progress-bar-track {
+    flex: 1;
+    height: 4px;
+    background-color: #272732;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+}
+
+.progress-bar-fill.high-propensity {
+    background-color: #10b981;
+}
+
+.progress-bar-fill.mid-propensity {
+    background-color: #f59e0b;
+}
+
+.progress-bar-fill.low-propensity {
+    background-color: #ef4444;
+}
+
+.progress-percentage-readout {
+    font-family: monospace;
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.progress-percentage-readout.high-propensity {
+    color: #10b981;
+}
+
+.progress-percentage-readout.mid-propensity {
+    color: #f59e0b;
+}
+
+.progress-percentage-readout.low-propensity {
+    color: #ef4444;
+}
+
+@keyframes pulse-drift {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
