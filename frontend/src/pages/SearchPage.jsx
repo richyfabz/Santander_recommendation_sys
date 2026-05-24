@@ -7,9 +7,6 @@
 
 import { useState, useCallback } from 'react'
 import { useNavigate }           from 'react-router-dom'
-import { getRecommendations, postFeedback } from '../services/api' 
-import { useState, useCallback } from 'react'
-import { useNavigate }           from 'react-router-dom'
 import { getRecommendations, postFeedback } from '../services/api'
 
 // Skeleton loader shown during inference

@@ -2,7 +2,10 @@
 // the Santander Recommender System. It uses React Router to define routes for different pages, 
 // including the home page, search page, metrics page, profile page, and about page. 
 // The Navbar and Footer components are included in the layout to provide consistent navigation
-//  and footer across all pages. The main content area is defined within a <main> tag, where the routed components will be rendered based on the current URL path.
+//  and footer across all pages. The main content area is defined within a <main> tag, 
+// where the routed components will be rendered based on the current URL path.
+
+import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom' // React Router components for client-side routing
 import Navbar        from './components/Navbar' // Navigation bar component that provides links to different pages of the application
 import Footer        from './components/Footer' // Footer component that displays at the bottom of the page with copyright and contact information

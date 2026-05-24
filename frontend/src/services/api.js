@@ -1,3 +1,4 @@
+// This module defines the API service functions that interact with the backend Flask API. It uses the axios library to make HTTP requests to the API endpoints for fetching product recommendations, submitting user feedback, retrieving feedback statistics, and checking the health status of the backend service. Each function corresponds to a specific API endpoint and handles the request and response data accordingly.
 import axios from 'axios'
 
 // All API calls route through Flask on port 5000
