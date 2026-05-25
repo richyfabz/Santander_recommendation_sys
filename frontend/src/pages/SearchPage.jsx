@@ -164,21 +164,23 @@ function RecCard({ rec, rank, customerId }) {
         AnimatePresence removed because it was animating height 0→auto
         which was the direct cause of the card growing on click.
       */}
-      <p
-        style={{
-          ...styles.fbConfirm,
-          visibility: feedback ? 'visible' : 'hidden',
-          color: feedback === 'up'
-            ? 'var(--green-400)'
-            : 'var(--pink-300)',
-        }}
-        role="status"
-        aria-live="polite"
-      >
-        {feedback === 'up'
-          ? '✓ Marked as relevant — recorded'
-          : '✓ Marked as not relevant — noted'}
-      </p>
+            
+              <p style={{
+                ...styles.fbConfirm,
+                opacity: feedback ? 1 : 0,
+                color: feedback === 'up'
+                  ? 'var(--green-400)'
+                  : 'var(--pink-300)',
+              }}
+              role="status"
+              aria-live="polite"
+            >
+              {feedback === 'up'
+                ? '✓ Marked as relevant — recorded'
+                : feedback === 'down'
+                ? '✓ Marked as not relevant — noted'
+                : 'placeholder'}
+            </p>
     </motion.article>
   );
 }
@@ -741,14 +743,16 @@ const styles = {
     minWidth: 44, textAlign: 'right',
   },
   fbConfirm: {
-  fontSize  : '0.75rem',
-  fontWeight: 500,
-  marginTop : 8,
-  paddingTop: 8,
-  height    : 24,        // fixed height — always takes up space
-  borderTop : '1px solid var(--border-subtle)',
-  overflow  : 'hidden',
-  transition: 'color 200ms ease',
+  fontSize   : '0.75rem',
+  fontWeight : 500,
+  marginTop  : 8,
+  paddingTop : 8,
+  minHeight  : 24,
+  borderTop  : '1px solid var(--border-subtle)',
+  overflow   : 'hidden',
+  transition : 'opacity 250ms ease, color 200ms ease',
+  // Hide placeholder text visually but keep space reserved
+  color      : 'transparent',
 },
 
   /* Sidebar */
