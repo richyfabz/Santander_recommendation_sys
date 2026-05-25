@@ -105,17 +105,33 @@ export default function HomePage() {
             </motion.p>
 
             {/* CTAs */}
-            <motion.div variants={fadeUp} style={styles.heroCtas}>
-              <Link to="/search" className="btn-primary">
-                Try a Recommendation →
-              </Link>
-              <Link to="/about" className="btn-secondary">
-                How it works
-              </Link>
-            </motion.div>
+            {/* ── CTA BUTTONS — all three in one aligned row ── */}
+          <div style={{
+            display    : 'flex',
+            gap        : '12px',
+            alignItems : 'center',
+            flexWrap   : 'wrap',
+            marginTop  : '32px',
+            }}>
+            {/* Primary — main call to action, pink glow */}
+            <Link to="/search" className="btn-primary">
+              Try a recommendation →
+            </Link>
+
+            {/* Ghost — secondary action, pink outlined */}
+            <Link to="/metrics" className="btn-ghost">
+              View model metrics
+            </Link>
+
+            {/* Secondary — soft tertiary, muted text */}
+            <Link to="/about" className="btn-secondary">
+              How it works
+            </Link>
+          </div>
+        
           </motion.div>
-        </div>
-      </section>
+         </div>
+        </section>
 
       {/* ── Stats band ── */}
       <section style={styles.statsBand}>

@@ -11,7 +11,7 @@ const stagger = { show: { transition: { staggerChildren: 0.09 } } };
 
 const NOTEBOOKS = [
   { nb: 'NB 01', title: 'Data Ingestion',
-    desc: '13.3M rows from train_ver2.csv streamed via chunked pandas and persisted to Parquet. Schema enforced — ncodpers int32, product cols Int8.',
+    desc: '13.3M rows from train_ver2.csv streamed via chunked pandas and persisted to Parquet. Schema enforced ncodpers int32, product cols Int8.',
     color: 'var(--pink-400)' },
   { nb: 'NB 02', title: 'Cohort Selection',
     desc: '3-month active window (Mar–May 2016). 922k customers present in all three months retained. Cohort confirmed representative of full dataset.',
@@ -96,7 +96,7 @@ export default function AboutPage() {
           transition={{ duration: 0.5 }}
         >
           <h2 className="section-title">
-            Pipeline — <span className="gradient-text">8 Notebook Stages</span>
+            Pipeline  <span className="gradient-text">8 pipeline Stages</span>
           </h2>
           <p className="section-subtitle">
             Every stage is documented, cell-by-cell, with markdown explanations
