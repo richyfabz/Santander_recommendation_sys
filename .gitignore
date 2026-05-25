@@ -1,3 +1,13 @@
+# Node
+frontend/node_modules/
+node_modules/
+
+# Artifacts
+artifacts/
+mlflow.db
+*.db
+*.npy
+*.buffer
 # Python
 __pycache__/
 *.py[cod]
@@ -9,6 +19,8 @@ venv/
 # Data files - never commit raw or processed data
 data/raw/
 data/parquet/
+*.csv
+*.parquet
 data/processed/
 artifacts/
 # Trained models
