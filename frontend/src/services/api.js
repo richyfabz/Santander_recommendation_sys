@@ -1,41 +1,28 @@
-// This module defines the API service functions that interact with the backend Flask API. It uses the axios library to make HTTP requests to the API endpoints for fetching product recommendations, submitting user feedback, retrieving feedback statistics, and checking the health status of the backend service. Each function corresponds to a specific API endpoint and handles the request and response data accordingly.
-import axios from 'axios'
+// api.js — API service functions for the RecSys frontend
+// All calls route through Flask on port 5000
+import axios from 'axios';
 
-// All API calls route through Flask on port 5000
-// The baseURL is set to the environment variable REACT_APP_API_URL if it exists, otherwise it defaults to 'http://localhost:5000'. This allows for flexibility in different deployment environments. The timeout is set to 15000 milliseconds (15 seconds) to prevent hanging requests, and the Content-Type header is set to 'application/json' for all requests made through this instance.
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
   timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
+});
 
-// RECOMMENDATIONS 
-// Get personalized product recommendations for a specific customer by their ID, returning a list of recommended products with associated details and probabilities.
-export const getRecommendations = async (customerId) => {
-  const res = await api.get(`/api/v1/recommend/${customerId}`)
-  return res.data
+// Fetch recommendations for a customer by ID
+// Now uses the updated /api/v1/recommend/:id endpoint
+export async function getRecommendations(customerId) {
+  const response = await api.get(`/api/v1/recommend/${customerId}`);
+  return response.data;
 }
 
-// FEEDBACK 
-// Post user feedback on product recommendations, including customer ID, product code, product name, and whether the recommendation was clicked, to the backend for analysis and model improvement.
-export const postFeedback = async (customerId, productCode, productName, clicked) => {
-  const res = await api.post('/api/v1/feedback', {
+// Post feedback for a recommendation
+export async function postFeedback(customerId, productCode, productName, isRelevant) {
+  const response = await api.post('/api/v1/feedback', {
     customer_id : customerId,
     product_code: productCode,
     product_name: productName,
-    clicked     : clicked,
-  })
-  return res.data
-}
-// Get aggregated feedback statistics for all products, including total clicks and impressions, to evaluate recommendation performance.
-export const getFeedbackStats = async () => {
-  const res = await api.get('/api/v1/feedback/stats')
-  return res.data
+    is_relevant : isRelevant,
+  });
+  return response.data;
 }
 
-// HEALTH 
-// Get the health status of the backend API, including uptime and version information, to monitor service availability and performance.
-export const getHealth = async () => {
-  const res = await api.get('/api/v1/health')
-  return res.data
-}
+export default api;
