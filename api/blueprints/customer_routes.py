@@ -7,6 +7,27 @@ import mlflow
 
 customer_bp = Blueprint('customer', __name__, url_prefix='/api/v1')
 
+#  Segment label mappings module level so all endpoints can access them 
+
+# Internal Santander code → friendly UI display name
+SEGMENT_LABELS = {
+    'TOP'          : {'label': 'VIP',        'description': 'High-income, long-tenure premium customers'},
+    'PARTICULARES' : {'label': 'Retail',     'description': 'Standard retail banking customers'},
+    'UNIVERSITARIO': {'label': 'University', 'description': 'Student and early-career customers'},
+}
+
+# Friendly name → internal code reverse lookup
+# Handles lowercase input from URL query params
+FRIENDLY_TO_INTERNAL = {
+    'vip'          : 'TOP',
+    'top'          : 'TOP',
+    'retail'       : 'PARTICULARES',
+    'particulares' : 'PARTICULARES',
+    'university'   : 'UNIVERSITARIO',
+    'universitario': 'UNIVERSITARIO',
+    'student'      : 'UNIVERSITARIO',
+}
+
 
 # MLflow quality gate helper 
 def fetch_mlflow_quality_gates():
@@ -99,23 +120,16 @@ def run_recommender_pipeline(cust_id):
 def search_customers():
     """
     Search customers by name, email, or segment.
-
-    Query params:
-      q       — partial name or email string (case-insensitive)
-      segment — filter by PARTICULARES | UNIVERSITARIO | TOP
-      limit   — max results to return (default 10, max 30)
-
-    Returns a list of customer profile cards without running inference.
-    Inference only runs when a specific customer is selected.
+    Accepts both friendly labels (vip, retail, university)
+    and internal codes (TOP, PARTICULARES, UNIVERSITARIO).
     """
     query   = request.args.get('q',       '').strip()
-    segment = request.args.get('segment', '').strip().upper()
+    segment = request.args.get('segment', '').strip()
     limit   = min(int(request.args.get('limit', 10)), 30)
 
-    # Start with all profiles
     qs = CustomerProfile.query
 
-    # Apply name/email filter if search query provided
+    # Name or email filter
     if query:
         like = f"%{query}%"
         qs = qs.filter(
@@ -125,9 +139,14 @@ def search_customers():
             )
         )
 
-    # Apply segment filter if provided
+    # Segment filter — accepts friendly names or internal codes
+    # Normalise to lowercase for lookup, then map to internal code
     if segment:
-        qs = qs.filter(CustomerProfile.segment == segment)
+        internal = FRIENDLY_TO_INTERNAL.get(
+            segment.lower(),
+            segment.upper()  # fallback: treat as internal code directly
+        )
+        qs = qs.filter(CustomerProfile.segment == internal)
 
     profiles = qs.limit(limit).all()
 
@@ -137,33 +156,53 @@ def search_customers():
         "customers": [p.to_dict() for p in profiles],
     }), 200
 
-
 # Endpoint 3: Browse by segment 
+# Friendly display name mapping  internal Santander labels → UI labels
+SEGMENT_LABELS = {
+    'TOP'           : {'label': 'VIP',        'description': 'High-income, long-tenure premium customers'},
+    'PARTICULARES'  : {'label': 'Retail',     'description': 'Standard retail banking customers'},
+    'UNIVERSITARIO' : {'label': 'University', 'description': 'Student and early-career customers'},
+}
+
+# Reverse map — allows friendly name lookup from UI
+# e.g. "vip" → "TOP", "university" → "UNIVERSITARIO"
+FRIENDLY_TO_INTERNAL = {
+    'vip'        : 'TOP',
+    'top'        : 'TOP',
+    'retail'     : 'PARTICULARES',
+    'particulares': 'PARTICULARES',
+    'university' : 'UNIVERSITARIO',
+    'universitario': 'UNIVERSITARIO',
+    'student'    : 'UNIVERSITARIO',
+}
+
+
 @customer_bp.route('/segments', methods=['GET'])
 def list_segments():
     """
     Return summary statistics for each customer segment.
-    Used by the segment analysis mode in the UI.
+    Includes friendly display labels so the UI doesn't expose
+    internal Santander segment codes to end users.
     """
-    segments = ['PARTICULARES', 'UNIVERSITARIO', 'TOP']
-    result   = []
+    result = []
 
-    for seg in segments:
-        profiles = CustomerProfile.query.filter_by(segment=seg).all()
+    for internal, meta in SEGMENT_LABELS.items():
+        profiles = CustomerProfile.query.filter_by(segment=internal).all()
         if not profiles:
             continue
-            # In a production system, we might want to return zero counts for empty segments,
-            # but for this demo we'll just skip them.
+
         avg_age    = round(sum(p.age for p in profiles) / len(profiles), 1)
         avg_income = round(sum(p.renta for p in profiles) / len(profiles), 0)
         avg_tenure = round(sum(p.antiguedad for p in profiles) / len(profiles), 1)
 
         result.append({
-            "segment"   : seg,
-            "count"     : len(profiles),
-            "avg_age"   : avg_age,
-            "avg_income": avg_income,
-            "avg_tenure": avg_tenure,
+            "segment"     : internal,
+            "label"       : meta['label'],
+            "description" : meta['description'],
+            "count"       : len(profiles),
+            "avg_age"     : avg_age,
+            "avg_income"  : avg_income,
+            "avg_tenure"  : avg_tenure,
         })
 
     return jsonify({"status": "success", "segments": result}), 200
