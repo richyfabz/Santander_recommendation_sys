@@ -1,9 +1,14 @@
-// SearchPage — customer ID search with live XGBoost inference
-// Data shape from Flask: { customer_id, demographics, holdings, recommendations, pipeline_audit }
-import { useState }              from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate }            from 'react-router-dom';
-import { getRecommendations, postFeedback } from '../services/api';
+// SearchPage — three-mode recommendation interface
+// Mode 1: Customer Search (name, email, ID)
+// Mode 2: Product Explorer (select product → see top candidates)
+// Mode 3: Segment Analysis (browse by VIP, Retail, University)
+
+import { useState, useEffect }       from 'react';
+import { motion, AnimatePresence }   from 'framer-motion';
+import { useNavigate }               from 'react-router-dom';
+import axios                         from 'axios';
+
+const API = axios.create({ baseURL: 'http://localhost:5000/api/v1' });
 
 // ── Animation variants ────────────────────────────────────────────────────────
 const fadeUp = {
@@ -11,16 +16,21 @@ const fadeUp = {
   show:   { opacity: 1, y: 0,
     transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] } },
 };
-const stagger = { show: { transition: { staggerChildren: 0.08 } } };
+const stagger = { show: { transition: { staggerChildren: 0.07 } } };
 
-// ── Colour helper — maps probability strength to design token ─────────────────
-function getProbColor(prob) {
-  if (prob >= 0.50) return 'var(--green-400)';
-  if (prob >= 0.30) return 'var(--amber-400)';
+// ── Colour helpers ────────────────────────────────────────────────────────────
+function getProbColor(p) {
+  if (p >= 0.50) return 'var(--green-400)';
+  if (p >= 0.30) return 'var(--amber-400)';
   return 'var(--pink-400)';
 }
 
-// ── Category colour map — matches product categories from recommendation_engine
+const SEGMENT_META = {
+  TOP          : { label: 'VIP',        icon: '👑', color: 'var(--amber-400)',  border: 'rgba(251,191,36,0.25)'  },
+  PARTICULARES : { label: 'Retail',     icon: '🏦', color: 'var(--blue-400)',   border: 'rgba(56,189,248,0.25)'  },
+  UNIVERSITARIO: { label: 'University', icon: '🎓', color: 'var(--green-400)',  border: 'rgba(52,211,153,0.25)'  },
+};
+
 const CATEGORY_COLORS = {
   Accounts    : { bg: 'rgba(56,189,248,0.10)',  text: 'var(--blue-400)',  border: 'rgba(56,189,248,0.20)'  },
   Credit      : { bg: 'rgba(240,71,138,0.10)',  text: 'var(--pink-300)',  border: 'rgba(240,71,138,0.25)'  },
@@ -28,221 +38,674 @@ const CATEGORY_COLORS = {
   Utilities   : { bg: 'rgba(251,191,36,0.10)',  text: 'var(--amber-400)', border: 'rgba(251,191,36,0.20)'  },
 };
 
-// ── Single recommendation card ────────────────────────────────────────────────
-function RecCard({ rec, rank, customerId }) {
-  // rec fields: product_code, name, category, description, probability
-  const [feedback, setFeedback] = useState(null); // null | 'up' | 'down'
-  const prob    = rec.probability || 0;
-  const probPct = (prob * 100).toFixed(1);
-  const color   = getProbColor(prob);
-  const catStyle = CATEGORY_COLORS[rec.category] || CATEGORY_COLORS.Utilities;
-  const isTop   = rank === 1;
+// ── Mode tab definitions ──────────────────────────────────────────────────────
+const MODES = [
+  { id: 'customer', label: 'Customer Search', icon: '🔍',
+    desc: 'Search by name, email or ID' },
+  { id: 'product',  label: 'Product Explorer', icon: '📦',
+    desc: 'Find candidates for a product' },
+  { id: 'segment',  label: 'Segment Analysis', icon: '📊',
+    desc: 'Browse by customer segment' },
+];
 
-  const handleFeedback = async (clicked) => {
-    // Optimistic update — show confirmation immediately
-    setFeedback(clicked ? 'up' : 'down');
-    try {
-      await postFeedback(customerId, rec.product_code, rec.name, clicked);
-    } catch {
-      // Revert on failure
-      setFeedback(null);
-    }
-  };
-
+// ── Probability bar ───────────────────────────────────────────────────────────
+function ProbBar({ prob, delay = 0 }) {
+  const color = getProbColor(prob);
   return (
-    <motion.article
-      variants    = {fadeUp}
-      whileHover  = {{
-        y: -5, scale: 1.015,
-        transition: { type: 'spring', stiffness: 280, damping: 22 },
-      }}
-      className   = "card"
-      style       = {{
-        ...styles.recCard,
-        // Gold border on top recommendation
-        border: isTop
-          ? '1px solid rgba(240,71,138,0.45)'
-          : '1px solid var(--border-card)',
-      }}
-    >
-      {/* Top row — rank + category badge + feedback */}
-      <div style={styles.recTop}>
-        <div style={styles.recTopLeft}>
-          {/* Rank badge */}
-          <span style={{
-            ...styles.rankBadge,
-            background: isTop ? 'var(--pink-400)' : 'var(--dark-600)',
-            color      : isTop ? '#fff' : 'var(--text-muted)',
-            boxShadow  : isTop ? '0 0 12px rgba(240,71,138,0.4)' : 'none',
-          }}>
-            #{rank}
-          </span>
-          {/* Category badge */}
-          {rec.category && (
-            <span style={{
-              ...styles.catBadge,
-              background  : catStyle.bg,
-              color       : catStyle.text,
-              border      : `1px solid ${catStyle.border}`,
-            }}>
-              {rec.category}
-            </span>
-          )}
-        </div>
-
-        {/* Feedback buttons */}
-        <div style={styles.feedbackRow} role="group" aria-label={`Feedback for ${rec.name}`}>
-          <button
-            onClick    = {() => handleFeedback(true)}
-            aria-label = "Relevant"
-            aria-pressed = {feedback === 'up'}
-            style      = {{
-              ...styles.fbBtn,
-              background  : feedback === 'up' ? 'rgba(52,211,153,0.15)' : 'transparent',
-              borderColor : feedback === 'up' ? 'var(--green-400)' : 'var(--border-card)',
-              transform   : feedback === 'up' ? 'scale(1.15)' : 'scale(1)',
-            }}
-          >
-            👍
-          </button>
-          <button
-            onClick    = {() => handleFeedback(false)}
-            aria-label = "Not relevant"
-            aria-pressed = {feedback === 'down'}
-            style      = {{
-              ...styles.fbBtn,
-              background  : feedback === 'down' ? 'rgba(240,71,138,0.12)' : 'transparent',
-              borderColor : feedback === 'down' ? 'var(--pink-400)' : 'var(--border-card)',
-              transform   : feedback === 'down' ? 'scale(1.15)' : 'scale(1)',
-            }}
-          >
-            👎
-          </button>
-        </div>
+    <div style={styles.probRow}>
+      <div style={styles.probTrack}>
+        <motion.div
+          style      = {{ ...styles.probFill, background: color, boxShadow: `0 0 6px ${color}` }}
+          initial    = {{ width: 0 }}
+          animate    = {{ width: `${(prob * 100).toFixed(1)}%` }}
+          transition = {{ duration: 0.75, delay, ease: [0.22, 1, 0.36, 1] }}
+        />
       </div>
-
-      {/* Product name — MUST be readable, large enough */}
-      <h3 style={styles.recName}>{rec.name}</h3>
-
-      {/* Product code — monospace, muted */}
-      <code style={styles.recCode}>{rec.product_code}</code>
-
-      {/* Description */}
-      {rec.description && (
-        <p style={styles.recDesc}>{rec.description}</p>
-      )}
-
-      {/* Probability bar + label */}
-      <div style={styles.probRow}>
-        <div
-          style       = {styles.probTrack}
-          role        = "progressbar"
-          aria-valuenow = {Math.round(prob * 100)}
-          aria-valuemin = {0}
-          aria-valuemax = {100}
-        >
-          <motion.div
-            style      = {{
-              ...styles.probFill,
-              background: color,
-              boxShadow : `0 0 8px ${color}`,
-            }}
-            initial    = {{ width: 0 }}
-            animate    = {{ width: `${probPct}%` }}
-            transition = {{ duration: 0.85, delay: rank * 0.08,
-                            ease: [0.22, 1, 0.36, 1] }}
-          />
-        </div>
-        <span style={{ ...styles.probLabel, color }}>{probPct}%</span>
-      </div>
-
-      {/* Feedback confirmation message */}
-      {/* 
-        Feedback confirmation space ALWAYS reserved using visibility.
-        Using visibility instead of conditional render means the element
-        always occupies its fixed height in the layout no card shift.
-        AnimatePresence removed because it was animating height 0→auto
-        which was the direct cause of the card growing on click.
-      */}
-            
-              <p style={{
-                ...styles.fbConfirm,
-                opacity: feedback ? 1 : 0,
-                color: feedback === 'up'
-                  ? 'var(--green-400)'
-                  : 'var(--pink-300)',
-              }}
-              role="status"
-              aria-live="polite"
-            >
-              {feedback === 'up'
-                ? '✓ Marked as relevant — recorded'
-                : feedback === 'down'
-                ? '✓ Marked as not relevant — noted'
-                : 'placeholder'}
-            </p>
-    </motion.article>
+      <span style={{ ...styles.probLabel, color }}>
+        {(prob * 100).toFixed(1)}%
+      </span>
+    </div>
   );
 }
 
-// ── Monitoring alert — fires for customer 1005 (drift simulation) ─────────────
-function MonitoringAlert({ audit }) {
-  if (!audit?.monitoring) return null;
-  const { retrain_status, baseline_ctr, current_ctr, ctr_drop } = audit.monitoring;
-  if (!retrain_status?.includes('FIRED')) return null;
-
+// ── Customer card — used in search results and product explorer ───────────────
+function CustomerCard({ customer, onClick, showProbability, probability }) {
+  const seg = SEGMENT_META[customer.segment] || SEGMENT_META.PARTICULARES;
   return (
     <motion.div
-      initial = {{ opacity: 0, y: -8 }}
-      animate = {{ opacity: 1, y: 0 }}
-      style   = {styles.driftAlert}
-      role    = "alert"
+      variants   = {fadeUp}
+      whileHover = {{ y: -4, scale: 1.015,
+        transition: { type: 'spring', stiffness: 300, damping: 20 } }}
+      className  = "card"
+      style      = {styles.customerCard}
+      onClick    = {onClick}
     >
-      <span style={{ fontSize: '1.2rem' }}>⚠️</span>
-      <div>
-        <div style={styles.alertTitle}>Drift detected — retraining queued</div>
-        <div style={styles.alertBody}>
-          CTR dropped from {baseline_ctr} baseline to {current_ctr} ({ctr_drop} drop).
-          Notebook 08 monitoring trigger fired.
+      {/* Avatar + name */}
+      <div style={styles.cardHeader}>
+        <div style={{ ...styles.avatar,
+          background: seg.color === 'var(--amber-400)'
+            ? 'rgba(251,191,36,0.15)' : seg.color === 'var(--green-400)'
+            ? 'rgba(52,211,153,0.15)' : 'rgba(56,189,248,0.15)',
+          border: `1px solid ${seg.border}`,
+          color: seg.color,
+        }}>
+          {customer.name.split(' ').map(w => w[0]).join('').slice(0,2)}
         </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={styles.cardName}>{customer.name}</div>
+          <div style={styles.cardEmail}>{customer.email}</div>
+        </div>
+        <span style={{ ...styles.segBadge,
+          background: seg.color === 'var(--amber-400)'
+            ? 'rgba(251,191,36,0.10)' : seg.color === 'var(--green-400)'
+            ? 'rgba(52,211,153,0.10)' : 'rgba(56,189,248,0.10)',
+          color: seg.color, border: `1px solid ${seg.border}`,
+        }}>
+          {seg.icon} {seg.label}
+        </span>
+      </div>
+
+      {/* Stats row */}
+      <div style={styles.statsRow}>
+        <div style={styles.statChip}>
+          <span style={styles.statVal}>{customer.age}</span>
+          <span style={styles.statKey}>yrs</span>
+        </div>
+        <div style={styles.statChip}>
+          <span style={styles.statVal}>{customer.tenure_months}mo</span>
+          <span style={styles.statKey}>tenure</span>
+        </div>
+        <div style={styles.statChip}>
+          <span style={styles.statVal}>
+            €{(customer.income/1000).toFixed(0)}k
+          </span>
+          <span style={styles.statKey}>income</span>
+        </div>
+        <div style={styles.statChip}>
+          <span style={styles.statVal}>{customer.holdings.length}</span>
+          <span style={styles.statKey}>products</span>
+        </div>
+      </div>
+
+      {/* Probability bar — shown in product explorer mode */}
+      {showProbability && probability != null && (
+        <div style={{ marginTop: 12, paddingTop: 12,
+          borderTop: '1px solid var(--border-subtle)' }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            color: 'var(--text-muted)', marginBottom: 6 }}>
+            Conversion probability
+          </div>
+          <ProbBar prob={probability} />
+        </div>
+      )}
+
+      {/* Click hint */}
+      <div style={styles.cardHint}>
+        View recommendations →
       </div>
     </motion.div>
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
-export default function SearchPage() {
-  const [customerId, setCustomerId] = useState('');
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState('');
-  const [results,    setResults]    = useState(null);
-  const navigate                    = useNavigate();
+// ── Recommendation panel — shown after selecting a customer ───────────────────
+function RecommendationPanel({ customerId, onClose }) {
+  const [data,    setData]    = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState('');
+  const navigate              = useNavigate();
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await API.get(`/recommend/${customerId}`);
+        setData(res.data);
+      } catch (e) {
+        setError(e.response?.data?.message || 'Failed to load recommendations.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [customerId]);
+
+  return (
+    <motion.div
+      initial    = {{ opacity: 0, x: 24 }}
+      animate    = {{ opacity: 1, x: 0 }}
+      exit       = {{ opacity: 0, x: 24 }}
+      transition = {{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      style      = {styles.panel}
+    >
+      {/* Panel header */}
+      <div style={styles.panelHeader}>
+        <span style={styles.panelTitle}>Recommendations</span>
+        <button onClick={onClose} style={styles.closeBtn}>✕</button>
+      </div>
+
+      {loading && (
+        <div style={styles.panelLoading}>
+          <motion.div
+            animate    = {{ rotate: 360 }}
+            transition = {{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            style      = {styles.spinner}
+          />
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            Running inference...
+          </span>
+        </div>
+      )}
+
+      {error && (
+        <div style={styles.panelError}>⚠️ {error}</div>
+      )}
+
+      {data && !loading && (
+        <div style={styles.panelContent}>
+          {/* Customer summary */}
+          <div style={styles.panelCustomer}>
+            <div style={styles.panelCustomerName}>{data.name}</div>
+            <div style={styles.panelCustomerSub}>
+              ID {data.customer_id} · {
+                SEGMENT_META[data.segment]?.label || data.segment
+              }
+            </div>
+          </div>
+
+          {/* Holdings */}
+          {data.holdings?.length > 0 && (
+            <div style={styles.holdingsWrap}>
+              <div style={styles.holdingsLabel}>Currently holds</div>
+              <div style={styles.holdingsTags}>
+                {data.holdings.map(h => (
+                  <span key={h} style={styles.holdingTag}>{h}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recommendations */}
+          <div style={styles.panelRecsLabel}>Top Recommendations</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {data.recommendations?.map((rec, i) => {
+              const cat = CATEGORY_COLORS[rec.category] || CATEGORY_COLORS.Utilities;
+              return (
+                <motion.div
+                  key        = {rec.product_code}
+                  initial    = {{ opacity: 0, y: 12 }}
+                  animate    = {{ opacity: 1, y: 0 }}
+                  transition = {{ delay: i * 0.07 }}
+                  style      = {styles.panelRecCard}
+                >
+                  <div style={styles.panelRecTop}>
+                    <span style={{
+                      ...styles.rankBadge,
+                      background: i === 0 ? 'var(--pink-400)' : 'var(--dark-600)',
+                      color: i === 0 ? '#fff' : 'var(--text-muted)',
+                    }}>#{i + 1}</span>
+                    <span style={{
+                      ...styles.catBadge,
+                      background: cat.bg, color: cat.text,
+                      border: `1px solid ${cat.border}`,
+                    }}>{rec.category}</span>
+                  </div>
+                  <div style={styles.panelRecName}>{rec.name}</div>
+                  <code style={styles.panelRecCode}>{rec.product_code}</code>
+                  <ProbBar prob={rec.probability} delay={i * 0.08} />
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {/* Full profile link */}
+          <button
+            onClick   = {() => navigate(`/profile/${data.customer_id}`)}
+            className = "btn-primary"
+            style     = {{ width: '100%', justifyContent: 'center', marginTop: 16 }}
+          >
+            Full Profile →
+          </button>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ── Mode 1: Customer Search ───────────────────────────────────────────────────
+function CustomerSearchMode({ onSelectCustomer }) {
+  const [query,    setQuery]    = useState('');
+  const [results,  setResults]  = useState([]);
+  const [loading,  setLoading]  = useState(false);
+  const [searched, setSearched] = useState(false);
 
   async function handleSearch(e) {
     e.preventDefault();
-    const id = customerId.trim();
-    if (!id) return;
-
+    if (!query.trim()) return;
     setLoading(true);
-    setError('');
-    setResults(null);
-
+    setSearched(true);
     try {
-      const data = await getRecommendations(id);
-      setResults(data);
-    } catch (err) {
-      // Extract the most useful error message from Flask response
-      const msg = err.response?.data?.message
-        || err.message
-        || 'Failed to fetch. Is Flask running on port 5000?';
-      setError(msg);
+      // Detect if input is numeric — search by ID directly
+      const isId = /^\d+$/.test(query.trim());
+      if (isId) {
+        onSelectCustomer(parseInt(query.trim()));
+        return;
+      }
+      const res = await API.get('/customers/search', {
+        params: { q: query.trim(), limit: 12 }
+      });
+      setResults(res.data.customers || []);
+    } catch {
+      setResults([]);
     } finally {
       setLoading(false);
     }
   }
 
-  // Quick-fill buttons for the three seeded customers
-  const QUICK_IDS = ['1001', '1002', '1005'];
+  return (
+    <div>
+      {/* Search form */}
+      <form onSubmit={handleSearch} style={styles.searchForm}>
+        <div style={styles.inputRow}>
+          <input
+            type        = "text"
+            value       = {query}
+            onChange    = {e => setQuery(e.target.value)}
+            placeholder = "Search by name, email, or customer ID..."
+            style       = {styles.input}
+            className   = "search-input"
+            disabled    = {loading}
+            autoFocus
+          />
+          <motion.button
+            type       = "submit"
+            className  = "btn-primary"
+            disabled   = {loading || !query.trim()}
+            whileHover = {{ scale: 1.03 }}
+            whileTap   = {{ scale: 0.97 }}
+            style      = {{ flexShrink: 0, opacity: loading ? 0.6 : 1 }}
+          >
+            {loading ? 'Searching...' : 'Search →'}
+          </motion.button>
+        </div>
+
+        {/* Quick ID hints */}
+        <div style={styles.hintRow}>
+          <span style={styles.hintText}>Try:</span>
+          {['Elena', 'Carlos', 'university', '1001', '2005', '3003'].map(h => (
+            <button key={h} type="button" style={styles.hintBtn}
+              onClick={() => { setQuery(h); }}>
+              {h}
+            </button>
+          ))}
+        </div>
+      </form>
+
+      {/* Results */}
+      <AnimatePresence>
+        {searched && !loading && results.length === 0 && (
+          <motion.div
+            initial = {{ opacity: 0 }} animate = {{ opacity: 1 }}
+            style   = {styles.emptyState}
+          >
+            <div style={styles.emptyIcon}>🔍</div>
+            <p style={styles.emptyTitle}>No customers found</p>
+            <p style={styles.emptySub}>Try a different name, email, or segment</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {results.length > 0 && (
+        <motion.div
+          variants = {stagger} initial = "hidden" animate = "show"
+          style    = {styles.resultsGrid}
+        >
+          {results.map(c => (
+            <CustomerCard
+              key      = {c.customer_id}
+              customer = {c}
+              onClick  = {() => onSelectCustomer(c.customer_id)}
+            />
+          ))}
+        </motion.div>
+      )}
+
+      {/* Empty initial state */}
+      {!searched && (
+        <motion.div
+          initial    = {{ opacity: 0 }}
+          animate    = {{ opacity: 1 }}
+          transition = {{ delay: 0.3 }}
+          style      = {styles.emptyState}
+        >
+          <div style={styles.emptyIcon}>👤</div>
+          <p style={styles.emptyTitle}>Search for a customer</p>
+          <p style={styles.emptySub}>
+            Enter a name, email address, segment name, or numeric customer ID
+          </p>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+// ── Mode 2: Product Explorer ──────────────────────────────────────────────────
+function ProductExplorerMode({ onSelectCustomer }) {
+  const [products,  setProducts]  = useState([]);
+  const [selected,  setSelected]  = useState('');
+  const [customers, setCustomers] = useState([]);
+  const [loading,   setLoading]   = useState(false);
+  const [fetched,   setFetched]   = useState(false);
+
+  // Load product catalog on mount
+  useEffect(() => {
+    API.get('/products').then(r => setProducts(r.data.products || []));
+  }, []);
+
+  async function handleProductSelect(code) {
+    setSelected(code);
+    setLoading(true);
+    setFetched(true);
+    try {
+      const res = await API.get(`/products/${code}/top-customers`,
+        { params: { limit: 12 } });
+      setCustomers(res.data.top_customers || []);
+    } catch {
+      setCustomers([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Group products by category for the dropdown
+  const grouped = products.reduce((acc, p) => {
+    if (!acc[p.category]) acc[p.category] = [];
+    acc[p.category].push(p);
+    return acc;
+  }, {});
+
+  const selectedProduct = products.find(p => p.code === selected);
+
+  return (
+    <div>
+      {/* Product selector */}
+      <div style={styles.productSelectorWrap}>
+        <label style={styles.selectorLabel}>
+          Select a product to find the best candidates
+        </label>
+        <select
+          value    = {selected}
+          onChange = {e => handleProductSelect(e.target.value)}
+          style    = {styles.select}
+          className= "search-input"
+        >
+          <option value="">— Choose a product —</option>
+          {Object.entries(grouped).map(([cat, prods]) => (
+            <optgroup key={cat} label={cat}>
+              {prods.map(p => (
+                <option key={p.code} value={p.code}>{p.name}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+
+      {/* Selected product info banner */}
+      <AnimatePresence>
+        {selectedProduct && (
+          <motion.div
+            initial = {{ opacity: 0, y: -8 }}
+            animate = {{ opacity: 1, y: 0 }}
+            exit    = {{ opacity: 0 }}
+            style   = {styles.productBanner}
+          >
+            <div>
+              <div style={styles.productBannerName}>
+                {selectedProduct.name}
+              </div>
+              <div style={styles.productBannerDesc}>
+                {selectedProduct.desc} · {selectedProduct.category}
+              </div>
+            </div>
+            <span style={{
+              ...styles.catBadge,
+              ...CATEGORY_COLORS[selectedProduct.category],
+              border: `1px solid ${CATEGORY_COLORS[selectedProduct.category]?.border}`,
+            }}>
+              {selectedProduct.category}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Loading */}
+      {loading && (
+        <div style={{ ...styles.emptyState }}>
+          <motion.div
+            animate    = {{ rotate: 360 }}
+            transition = {{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            style      = {styles.spinner}
+          />
+          <p style={styles.emptySub}>Finding top candidates...</p>
+        </div>
+      )}
+
+      {/* Results */}
+      {!loading && fetched && customers.length > 0 && (
+        <div>
+          <div style={styles.resultsHeader}>
+            <span style={styles.resultsCount}>
+              Top {customers.length} candidates
+            </span>
+            <span style={styles.resultsSub}>
+              ranked by conversion probability
+            </span>
+          </div>
+          <motion.div
+            variants = {stagger} initial = "hidden" animate = "show"
+            style    = {styles.resultsGrid}
+          >
+            {customers.map(c => (
+              <CustomerCard
+                key             = {c.customer_id}
+                customer        = {c}
+                onClick         = {() => onSelectCustomer(c.customer_id)}
+                showProbability = {true}
+                probability     = {c.probability}
+              />
+            ))}
+          </motion.div>
+        </div>
+      )}
+
+      {/* Empty initial */}
+      {!fetched && (
+        <motion.div
+          initial    = {{ opacity: 0 }}
+          animate    = {{ opacity: 1 }}
+          transition = {{ delay: 0.3 }}
+          style      = {styles.emptyState}
+        >
+          <div style={styles.emptyIcon}>📦</div>
+          <p style={styles.emptyTitle}>Select a product above</p>
+          <p style={styles.emptySub}>
+            The model will rank all customers by likelihood to add that product next month
+          </p>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+// ── Mode 3: Segment Analysis ──────────────────────────────────────────────────
+function SegmentAnalysisMode({ onSelectCustomer }) {
+  const [segments,  setSegments]  = useState([]);
+  const [selected,  setSelected]  = useState(null);
+  const [customers, setCustomers] = useState([]);
+  const [loading,   setLoading]   = useState(false);
+
+  // Load segment summaries on mount
+  useEffect(() => {
+    API.get('/segments').then(r => setSegments(r.data.segments || []));
+  }, []);
+
+  async function handleSegmentSelect(seg) {
+    setSelected(seg);
+    setLoading(true);
+    try {
+      const res = await API.get('/customers/search', {
+        params: { segment: seg.segment, limit: 15 }
+      });
+      setCustomers(res.data.customers || []);
+    } catch {
+      setCustomers([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div>
+      {/* Segment cards */}
+      <motion.div
+        variants = {stagger} initial = "hidden" animate = "show"
+        style    = {styles.segmentGrid}
+      >
+        {segments.map(seg => {
+          const meta    = SEGMENT_META[seg.segment] || SEGMENT_META.PARTICULARES;
+          const isActive = selected?.segment === seg.segment;
+          return (
+            <motion.div
+              key        = {seg.segment}
+              variants   = {fadeUp}
+              whileHover = {{ y: -4, scale: 1.02,
+                transition: { type: 'spring', stiffness: 300, damping: 20 } }}
+              onClick    = {() => handleSegmentSelect(seg)}
+              className  = "card"
+              style      = {{
+                ...styles.segCard,
+                border: isActive
+                  ? `1px solid ${meta.color}`
+                  : '1px solid var(--border-card)',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={styles.segCardHeader}>
+                <span style={styles.segIcon}>{meta.icon}</span>
+                <span style={{ ...styles.segLabel, color: meta.color }}>
+                  {meta.label}
+                </span>
+                {isActive && (
+                  <span style={{ ...styles.activePill, background: meta.color }}>
+                    Selected
+                  </span>
+                )}
+              </div>
+              <p style={styles.segDesc}>{seg.description}</p>
+              <div style={styles.segStats}>
+                <div style={styles.segStat}>
+                  <span style={{ ...styles.segStatVal, color: meta.color }}>
+                    {seg.count}
+                  </span>
+                  <span style={styles.segStatKey}>customers</span>
+                </div>
+                <div style={styles.segStat}>
+                  <span style={{ ...styles.segStatVal, color: meta.color }}>
+                    {seg.avg_age}
+                  </span>
+                  <span style={styles.segStatKey}>avg age</span>
+                </div>
+                <div style={styles.segStat}>
+                  <span style={{ ...styles.segStatVal, color: meta.color }}>
+                    €{(seg.avg_income/1000).toFixed(0)}k
+                  </span>
+                  <span style={styles.segStatKey}>avg income</span>
+                </div>
+                <div style={styles.segStat}>
+                  <span style={{ ...styles.segStatVal, color: meta.color }}>
+                    {seg.avg_tenure}mo
+                  </span>
+                  <span style={styles.segStatKey}>avg tenure</span>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </motion.div>
+
+      {/* Customer list for selected segment */}
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            initial = {{ opacity: 0, y: 12 }}
+            animate = {{ opacity: 1, y: 0 }}
+            exit    = {{ opacity: 0 }}
+          >
+            <div style={styles.resultsHeader}>
+              <span style={styles.resultsCount}>
+                {SEGMENT_META[selected.segment]?.label} customers
+              </span>
+              <span style={styles.resultsSub}>
+                click any card to view recommendations
+              </span>
+            </div>
+
+            {loading ? (
+              <div style={styles.emptyState}>
+                <motion.div
+                  animate    = {{ rotate: 360 }}
+                  transition = {{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  style      = {styles.spinner}
+                />
+              </div>
+            ) : (
+              <motion.div
+                variants = {stagger} initial = "hidden" animate = "show"
+                style    = {styles.resultsGrid}
+              >
+                {customers.map(c => (
+                  <CustomerCard
+                    key      = {c.customer_id}
+                    customer = {c}
+                    onClick  = {() => onSelectCustomer(c.customer_id)}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Empty initial */}
+      {!selected && segments.length > 0 && (
+        <motion.div
+          initial    = {{ opacity: 0 }}
+          animate    = {{ opacity: 1 }}
+          transition = {{ delay: 0.4 }}
+          style      = {styles.emptyState}
+        >
+          <div style={styles.emptyIcon}>📊</div>
+          <p style={styles.emptyTitle}>Select a segment above</p>
+          <p style={styles.emptySub}>
+            Browse all customers in that segment and run recommendations for any of them
+          </p>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+// ── Main page 
+export default function SearchPage() {
+  const [activeMode,      setActiveMode]      = useState('customer');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+
+  function handleSelectCustomer(id) {
+    setSelectedCustomer(id);
+  }
+
+  function handleClosePanel() {
+    setSelectedCustomer(null);
+  }
 
   return (
     <main style={{ background: 'var(--bg-page)', minHeight: '100vh' }}>
@@ -252,7 +715,11 @@ export default function SearchPage() {
         <div className="grid-bg" />
         <div style={styles.orb} />
         <div className="container" style={{ position: 'relative' }}>
-          <motion.div initial="hidden" animate="show" variants={stagger}>
+          <motion.div
+            initial  = "hidden"
+            animate  = "show"
+            variants = {stagger}
+          >
             <motion.div variants={fadeUp}>
               <span className="badge">Model Inference</span>
             </motion.div>
@@ -260,256 +727,107 @@ export default function SearchPage() {
               Product <span className="gradient-text">Recommender</span>
             </motion.h1>
             <motion.p variants={fadeUp} style={styles.pageSub}>
-              Enter a customer ID to query the XGBoost model and retrieve
-              top product recommendations ranked by probability.
+              Three ways to explore recommendations — search by customer,
+              find candidates for a product, or browse by segment.
             </motion.p>
           </motion.div>
         </div>
       </section>
 
-      {/* ── Search section ── */}
-      <div className="container" style={{ padding: '48px 24px 0' }}>
-
-        {/* Search form */}
-        <motion.form
-          onSubmit   = {handleSearch}
-          style      = {styles.form}
-          initial    = {{ opacity: 0, y: 20 }}
-          animate    = {{ opacity: 1, y: 0 }}
-          transition = {{ duration: 0.5, delay: 0.2 }}
-        >
-          <div style={styles.inputRow}>
-            <input
-              type        = "text"
-              value       = {customerId}
-              onChange    = {e => setCustomerId(e.target.value)}
-              placeholder = "Customer ID — e.g. 1001"
-              style       = {styles.input}
-              className   = "search-input"
-              disabled    = {loading}
-              aria-label  = "Customer ID"
-              autoComplete= "off"
-            />
-            <motion.button
-              type       = "submit"
-              className  = "btn-primary"
-              disabled   = {loading || !customerId.trim()}
-              whileHover = {{ scale: 1.03 }}
-              whileTap   = {{ scale: 0.97 }}
-              style      = {{ flexShrink: 0, opacity: loading ? 0.6 : 1 }}
-            >
-              {loading ? 'Querying model...' : 'Get Recommendations →'}
-            </motion.button>
-          </div>
-
-          {/* Quick-fill hint — shows the three seeded customer IDs */}
-          <div style={styles.hintRow}>
-            <span style={styles.hintText}>Seeded customers:</span>
-            {QUICK_IDS.map(id => (
+      {/* ── Mode tabs ── */}
+      <div style={styles.tabsBar}>
+        <div className="container">
+          <div style={styles.tabs}>
+            {MODES.map(mode => (
               <button
-                key      = {id}
-                type     = "button"
-                style    = {styles.hintBtn}
-                onClick  = {() => setCustomerId(id)}
+                key     = {mode.id}
+                onClick = {() => {
+                  setActiveMode(mode.id);
+                  setSelectedCustomer(null);
+                }}
+                style   = {{
+                  ...styles.tab,
+                  background: activeMode === mode.id
+                    ? 'rgba(240,71,138,0.12)' : 'transparent',
+                  borderColor: activeMode === mode.id
+                    ? 'var(--pink-400)' : 'transparent',
+                  color: activeMode === mode.id
+                    ? 'var(--text-primary)' : 'var(--text-muted)',
+                }}
               >
-                {id}
+                <span style={styles.tabIcon}>{mode.icon}</span>
+                <span style={styles.tabLabel}>{mode.label}</span>
+                <span style={styles.tabDesc}>{mode.desc}</span>
               </button>
             ))}
           </div>
-        </motion.form>
-
-        {/* ── Error state ── */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial = {{ opacity: 0, y: -8 }}
-              animate = {{ opacity: 1, y: 0 }}
-              exit    = {{ opacity: 0 }}
-              style   = {styles.errorBox}
-              role    = "alert"
-            >
-              <span>⚠️</span>
-              <div>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                  Request failed
-                </div>
-                <div style={{ fontSize: '0.85rem', opacity: 0.85 }}>{error}</div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── Loading skeletons ── */}
-        <AnimatePresence>
-          {loading && (
-            <motion.div
-              initial = {{ opacity: 0 }}
-              animate = {{ opacity: 1 }}
-              exit    = {{ opacity: 0 }}
-              style   = {{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 860 }}
-            >
-              {[...Array(4)].map((_, i) => (
-                <div
-                  key   = {i}
-                  style = {{
-                    height         : 88,
-                    borderRadius   : 'var(--radius-md)',
-                    background     : 'linear-gradient(90deg, var(--dark-700) 25%, var(--dark-600) 50%, var(--dark-700) 75%)',
-                    backgroundSize : '400px 100%',
-                    animation      : 'shimmer 1.4s infinite',
-                    animationDelay : `${i * 0.1}s`,
-                  }}
-                  aria-hidden="true"
-                />
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── Results ── */}
-        <AnimatePresence>
-          {results && !loading && (
-            <motion.div
-              initial = {{ opacity: 0 }}
-              animate = {{ opacity: 1 }}
-              exit    = {{ opacity: 0 }}
-            >
-              {/* Drift alert — only visible for customer 1005 */}
-              <MonitoringAlert audit={results.pipeline_audit} />
-
-              {/* Two-column layout on wide screens */}
-              <div style={styles.resultsLayout}>
-
-                {/* ── LEFT: recommendations ── */}
-                <div style={styles.mainCol}>
-
-                  {/* Customer card — demographics + holdings */}
-                  <motion.div
-                    initial    = {{ opacity: 0, y: 16 }}
-                    animate    = {{ opacity: 1, y: 0 }}
-                    transition = {{ duration: 0.4 }}
-                    style      = {styles.customerCard}
-                  >
-                    <div style={styles.customerHeader}>
-                      {/* Avatar circle */}
-                      <div style={styles.avatar}>
-                        {String(results.customer_id).slice(-2)}
-                      </div>
-                      <div>
-                        <div style={styles.customerIdLabel}>Customer ID</div>
-                        <div style={styles.customerId}>{results.customer_id}</div>
-                      </div>
-                    </div>
-
-                    {/* Holdings tags */}
-                    {results.holdings?.length > 0 && (
-                      <div style={styles.holdingsSection}>
-                        <div style={styles.holdingsLabel}>Current holdings</div>
-                        <div style={styles.holdingsTags}>
-                          {results.holdings.map(name => (
-                            <span key={name} style={styles.holdingTag}>
-                              {name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
-
-                  {/* Recommendation cards */}
-                  <h2 style={styles.recSectionTitle}>Top Recommendations</h2>
-                  <motion.div
-                    style    = {styles.recGrid}
-                    variants = {stagger}
-                    initial  = "hidden"
-                    animate  = "show"
-                  >
-                    {results.recommendations?.map((rec, i) => (
-                      <RecCard
-                        key        = {rec.product_code}
-                        rec        = {rec}
-                        rank       = {i + 1}
-                        customerId = {results.customer_id}
-                      />
-                    ))}
-                  </motion.div>
-                </div>
-
-                {/* ── RIGHT: sidebar — demographics + pipeline gates ── */}
-                <aside style={styles.sidebar}>
-
-                  {/* Demographics */}
-                  <div style={styles.sideCard}>
-                    <div style={styles.sideCardTitle}>Demographics</div>
-                    <dl style={styles.dl}>
-                      {results.demographics && [
-                        ['Age',    `${results.demographics.age} years`],
-                        ['Tenure', `${results.demographics.tenure_months} months`],
-                        ['Income', `€${results.demographics.income?.toLocaleString()}`],
-                      ].map(([k, v]) => (
-                        <div key={k} style={styles.dlRow}>
-                          <dt style={styles.dlKey}>{k}</dt>
-                          <dd style={styles.dlVal}>{v}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                    <button
-                      onClick   = {() => navigate(`/profile/${results.customer_id}`)}
-                      className = "btn-ghost"
-                      style     = {{ width: '100%', justifyContent: 'center', marginTop: 14 }}
-                    >
-                      Full profile →
-                    </button>
-                  </div>
-
-                  {/* Pipeline gates */}
-                  <div style={{ ...styles.sideCard, marginTop: 14 }}>
-                    <div style={styles.sideCardTitle}>Pipeline gates</div>
-                    {results.pipeline_audit?.gates && Object.values(results.pipeline_audit.gates).map(gate => {
-                      const pass = gate.value >= gate.threshold;
-                      return (
-                        <div key={gate.metric} style={styles.gateRow}>
-                          <span style={styles.gateLabel}>{gate.metric}</span>
-                          <div style={styles.gateRight}>
-                            <span style={styles.gateValue}>{gate.value}</span>
-                            <span style={{
-                              ...styles.gatePill,
-                              background: pass ? 'rgba(52,211,153,0.12)' : 'rgba(240,71,138,0.12)',
-                              color     : pass ? 'var(--green-400)'       : 'var(--pink-300)',
-                              border    : `1px solid ${pass ? 'rgba(52,211,153,0.25)' : 'rgba(240,71,138,0.25)'}`,
-                            }}>
-                              {pass ? '✓' : '✗'}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                </aside>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Empty state — no search yet */}
-        {!results && !loading && !error && (
-          <motion.div
-            initial    = {{ opacity: 0 }}
-            animate    = {{ opacity: 1 }}
-            transition = {{ delay: 0.4 }}
-            style      = {styles.emptyState}
-          >
-            <div style={styles.emptyIcon} aria-hidden="true">⚡</div>
-            <p style={styles.emptyTitle}>Ready to recommend</p>
-            <p style={styles.emptySub}>
-              Select a customer ID above or type your own to run inference
-            </p>
-          </motion.div>
-        )}
+        </div>
       </div>
 
-      {/* Inject keyframes for shimmer + input focus */}
+      {/* ── Content area ── */}
+      <div className="container" style={{ padding: '40px 24px 64px' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: selectedCustomer ? '1fr 360px' : '1fr',
+          gap: 24, alignItems: 'start',
+          transition: 'grid-template-columns 300ms ease',
+        }}>
+
+          {/* Main content */}
+          <div>
+            <AnimatePresence mode="wait">
+              {activeMode === 'customer' && (
+                <motion.div key="customer"
+                  initial = {{ opacity: 0, y: 12 }}
+                  animate = {{ opacity: 1, y: 0 }}
+                  exit    = {{ opacity: 0, y: -8 }}
+                  transition = {{ duration: 0.3 }}
+                >
+                  <CustomerSearchMode
+                    onSelectCustomer={handleSelectCustomer}
+                  />
+                </motion.div>
+              )}
+              {activeMode === 'product' && (
+                <motion.div key="product"
+                  initial = {{ opacity: 0, y: 12 }}
+                  animate = {{ opacity: 1, y: 0 }}
+                  exit    = {{ opacity: 0, y: -8 }}
+                  transition = {{ duration: 0.3 }}
+                >
+                  <ProductExplorerMode
+                    onSelectCustomer={handleSelectCustomer}
+                  />
+                </motion.div>
+              )}
+              {activeMode === 'segment' && (
+                <motion.div key="segment"
+                  initial = {{ opacity: 0, y: 12 }}
+                  animate = {{ opacity: 1, y: 0 }}
+                  exit    = {{ opacity: 0, y: -8 }}
+                  transition = {{ duration: 0.3 }}
+                >
+                  <SegmentAnalysisMode
+                    onSelectCustomer={handleSelectCustomer}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Sliding recommendation panel */}
+          <AnimatePresence>
+            {selectedCustomer && (
+              <RecommendationPanel
+                key        = {selectedCustomer}
+                customerId = {selectedCustomer}
+                onClose    = {handleClosePanel}
+              />
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
       <style>{`
         .search-input:focus {
           outline: none;
@@ -517,10 +835,8 @@ export default function SearchPage() {
           box-shadow: 0 0 0 3px rgba(240,71,138,0.15) !important;
         }
         .search-input::placeholder { color: var(--grey-500); }
-        @keyframes shimmer {
-          0%   { background-position: -400px 0; }
-          100% { background-position:  400px 0; }
-        }
+        select.search-input option { background: var(--dark-700); color: var(--text-primary); }
+        select.search-input optgroup { color: var(--text-muted); font-weight: 700; }
       `}</style>
     </main>
   );
@@ -545,20 +861,40 @@ const styles = {
     fontSize: 'clamp(2rem, 4vw, 3.2rem)',
     fontWeight: 800, lineHeight: 1.1,
     color: 'var(--text-primary)',
-    margin: '20px 0 14px',
-    letterSpacing: '-0.02em',
+    margin: '20px 0 14px', letterSpacing: '-0.02em',
   },
   pageSub: {
     fontSize: '1rem', color: 'var(--text-muted)',
     maxWidth: 520, lineHeight: 1.75,
   },
 
-  /* Form */
-  form    : { maxWidth: 760, marginBottom: 16 },
+  /* Mode tabs */
+  tabsBar: {
+    background: 'var(--dark-800)',
+    borderBottom: '1px solid var(--border-subtle)',
+    position: 'sticky', top: 64, zIndex: 50,
+  },
+  tabs: {
+    display: 'flex', gap: 4, padding: '12px 0',
+    overflowX: 'auto',
+  },
+  tab: {
+    display: 'flex', flexDirection: 'column', gap: 2,
+    padding: '10px 20px', borderRadius: 'var(--radius-md)',
+    border: '1px solid transparent',
+    cursor: 'pointer', textAlign: 'left',
+    transition: 'all 150ms ease', flexShrink: 0,
+    fontFamily: 'var(--font-body)',
+  },
+  tabIcon:  { fontSize: '1.1rem' },
+  tabLabel: { fontSize: '0.88rem', fontWeight: 700, lineHeight: 1.2 },
+  tabDesc:  { fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1 },
+
+  /* Search form */
+  searchForm: { maxWidth: 760, marginBottom: 28 },
   inputRow: {
     display: 'flex', gap: 12,
-    alignItems: 'center', flexWrap: 'wrap',
-    marginBottom: 10,
+    alignItems: 'center', flexWrap: 'wrap', marginBottom: 10,
   },
   input: {
     flex: '1 1 260px',
@@ -572,259 +908,308 @@ const styles = {
     transition: 'border-color 150ms, box-shadow 150ms',
   },
   hintRow: {
-    display: 'flex', gap: 8, alignItems: 'center',
-    flexWrap: 'wrap',
+    display: 'flex', gap: 8,
+    alignItems: 'center', flexWrap: 'wrap',
   },
-  hintText: {
-    fontSize: '0.8rem', color: 'var(--text-muted)',
-  },
+  hintText: { fontSize: '0.8rem', color: 'var(--text-muted)' },
   hintBtn: {
     background: 'rgba(240,71,138,0.08)',
     border: '1px solid rgba(240,71,138,0.20)',
-    borderRadius: 99,
-    padding: '3px 12px',
-    color: 'var(--pink-300)',
-    fontSize: '0.8rem', fontWeight: 600,
-    cursor: 'pointer',
+    borderRadius: 99, padding: '3px 12px',
+    color: 'var(--pink-300)', fontSize: '0.8rem',
+    fontWeight: 600, cursor: 'pointer',
     transition: 'background 150ms',
+    fontFamily: 'var(--font-body)',
   },
 
-  /* Error */
-  errorBox: {
-    display: 'flex', alignItems: 'flex-start', gap: 12,
-    background: 'rgba(240,71,138,0.08)',
-    border: '1px solid rgba(240,71,138,0.25)',
-    borderRadius: 'var(--radius-md)',
-    padding: '16px 18px',
-    color: 'var(--pink-300)',
-    marginBottom: 24, maxWidth: 760,
+  /* Product selector */
+  productSelectorWrap: { maxWidth: 520, marginBottom: 20 },
+  selectorLabel: {
+    display: 'block', fontSize: '0.85rem',
+    color: 'var(--text-muted)', marginBottom: 8, fontWeight: 500,
   },
-
-  /* Results layout */
-  resultsLayout: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 280px',
-    gap: 20, alignItems: 'start',
-    paddingBottom: 64,
-  },
-  mainCol: { display: 'flex', flexDirection: 'column', gap: 0 },
-
-  /* Customer card */
-  customerCard: {
+  select: {
+    width: '100%',
     background: 'var(--dark-700)',
     border: '1px solid var(--border-card)',
-    borderRadius: 'var(--radius-lg)',
-    padding: '22px 24px',
-    marginBottom: 24,
+    borderRadius: 'var(--radius-md)',
+    padding: '14px 18px',
+    color: 'var(--text-primary)',
+    fontFamily: 'var(--font-body)',
+    fontSize: '0.95rem',
+    cursor: 'pointer',
+    transition: 'border-color 150ms',
   },
-  customerHeader: {
-    display: 'flex', alignItems: 'center', gap: 14,
-    marginBottom: 16,
+  productBanner: {
+    display: 'flex', alignItems: 'center',
+    justifyContent: 'space-between', gap: 16,
+    background: 'var(--dark-700)',
+    border: '1px solid var(--border-card)',
+    borderRadius: 'var(--radius-md)',
+    padding: '14px 18px', marginBottom: 24,
   },
-  avatar: {
-    width: 48, height: 48, borderRadius: '50%',
-    background: 'var(--pink-400)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  productBannerName: {
     fontFamily: 'var(--font-display)',
-    fontSize: '1rem', fontWeight: 800, color: '#fff',
-    flexShrink: 0,
-    boxShadow: '0 0 16px rgba(240,71,138,0.35)',
+    fontSize: '1rem', fontWeight: 700,
+    color: 'var(--text-primary)', marginBottom: 3,
   },
-  customerIdLabel: {
-    fontSize: '0.7rem', fontWeight: 700,
-    letterSpacing: '0.08em', textTransform: 'uppercase',
-    color: 'var(--text-muted)', marginBottom: 2,
-  },
-  customerId: {
-    fontFamily: 'var(--font-display)',
-    fontSize: '1.25rem', fontWeight: 700,
-    color: 'var(--pink-400)',
-  },
-  holdingsSection: {
-    borderTop: '1px solid var(--border-subtle)',
-    paddingTop: 14,
-  },
-  holdingsLabel: {
-    fontSize: '0.7rem', fontWeight: 700,
-    letterSpacing: '0.08em', textTransform: 'uppercase',
-    color: 'var(--text-muted)', marginBottom: 10,
-    display: 'block',
-  },
-  holdingsTags: { display: 'flex', flexWrap: 'wrap', gap: 7 },
-  holdingTag: {
-    background: 'rgba(56,189,248,0.08)',
-    border: '1px solid rgba(56,189,248,0.20)',
-    borderRadius: 99, padding: '4px 12px',
-    fontSize: '0.78rem', color: 'var(--blue-400)',
-    fontWeight: 500,
+  productBannerDesc: {
+    fontSize: '0.82rem', color: 'var(--text-muted)',
   },
 
-  /* Rec section */
-  recSectionTitle: {
-    fontFamily: 'var(--font-display)',
-    fontSize: '1.1rem', fontWeight: 700,
-    color: 'var(--text-secondary)',
-    marginBottom: 14,
-    textTransform: 'uppercase', letterSpacing: '0.06em',
-  },
-  recGrid: {
+  /* Segment cards */
+  segmentGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+    gap: 16, marginBottom: 32,
+  },
+  segCard: { padding: '24px' },
+  segCardHeader: {
+    display: 'flex', alignItems: 'center',
+    gap: 10, marginBottom: 10,
+  },
+  segIcon:  { fontSize: '1.4rem' },
+  segLabel: {
+    fontFamily: 'var(--font-display)',
+    fontSize: '1.1rem', fontWeight: 800,
+    flex: 1,
+  },
+  activePill: {
+    fontSize: '0.68rem', fontWeight: 700,
+    padding: '2px 8px', borderRadius: 99,
+    color: '#fff', letterSpacing: '0.04em',
+  },
+  segDesc: {
+    fontSize: '0.82rem', color: 'var(--text-muted)',
+    lineHeight: 1.6, marginBottom: 16,
+  },
+  segStats: {
+    display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: 8,
+  },
+  segStat: {
+    display: 'flex', flexDirection: 'column',
+    gap: 2, textAlign: 'center',
+  },
+  segStatVal: {
+    fontFamily: 'var(--font-display)',
+    fontSize: '1rem', fontWeight: 700,
+  },
+  segStatKey: {
+    fontSize: '0.65rem', color: 'var(--text-muted)',
+    textTransform: 'uppercase', letterSpacing: '0.04em',
+  },
+
+  /* Results */
+  resultsHeader: {
+    display: 'flex', alignItems: 'baseline',
+    gap: 10, marginBottom: 16,
+  },
+  resultsCount: {
+    fontFamily: 'var(--font-display)',
+    fontSize: '1rem', fontWeight: 700,
+    color: 'var(--text-primary)',
+  },
+  resultsSub: {
+    fontSize: '0.8rem', color: 'var(--text-muted)',
+  },
+  resultsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
     gap: 14,
   },
 
-  /* Rec card */
-  recCard: {
-    padding: '18px 20px',
+  /* Customer card */
+  customerCard: {
+    padding: '18px 20px', cursor: 'pointer',
     background: 'var(--dark-700)',
-    position: 'relative',
-    cursor: 'default',
   },
-  recTop: {
-    display: 'flex', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 14,
+  cardHeader: {
+    display: 'flex', alignItems: 'center',
+    gap: 12, marginBottom: 14,
   },
-  recTopLeft: { display: 'flex', gap: 8, alignItems: 'center' },
-  rankBadge: {
-    display: 'inline-block',
-    borderRadius: 99, padding: '2px 10px',
-    fontSize: '0.72rem', fontWeight: 800,
-    letterSpacing: '0.06em',
-    transition: 'all 150ms',
-  },
-  catBadge: {
-    display: 'inline-block',
-    borderRadius: 99, padding: '2px 10px',
-    fontSize: '0.7rem', fontWeight: 600,
-    letterSpacing: '0.04em',
-  },
-  feedbackRow: { display: 'flex', gap: 6 },
-  fbBtn: {
-    padding: '4px 9px', borderRadius: 8,
-    border: '1px solid var(--border-card)',
-    fontSize: '0.85rem', cursor: 'pointer',
-    lineHeight: 1, background: 'transparent',
-    transition: 'all 150ms ease',
-  },
-
-  /* Product info */
-  recName: {
+  avatar: {
+    width: 40, height: 40, borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontFamily: 'var(--font-display)',
-    fontSize: '1rem', fontWeight: 700,
-    color: 'var(--text-primary)',   /* ← explicit white — fixes invisible text */
-    marginBottom: 4, lineHeight: 1.25,
+    fontSize: '0.85rem', fontWeight: 800,
+    flexShrink: 0,
   },
-  recCode: {
-    display: 'block',
-    fontSize: '0.72rem', fontFamily: 'monospace',
-    color: 'var(--text-muted)',
-    marginBottom: 8,
-  },
-  recDesc: {
-    fontSize: '0.82rem', color: 'var(--text-muted)',
-    lineHeight: 1.65, marginBottom: 14,
-  },
-
-  /* Probability */
-  probRow: {
-    display: 'flex', alignItems: 'center', gap: 10,
-    marginTop: 4,
-  },
-  probTrack: {
-    flex: 1, height: 6, borderRadius: 99,
-    background: 'var(--dark-600)', overflow: 'hidden',
-  },
-  probFill: {
-    height: '100%', borderRadius: 99,
-  },
-  probLabel: {
+  cardName: {
     fontFamily: 'var(--font-display)',
-    fontSize: '0.85rem', fontWeight: 700,
-    minWidth: 44, textAlign: 'right',
-  },
-  fbConfirm: {
-  fontSize   : '0.75rem',
-  fontWeight : 500,
-  marginTop  : 8,
-  paddingTop : 8,
-  minHeight  : 24,
-  borderTop  : '1px solid var(--border-subtle)',
-  overflow   : 'hidden',
-  transition : 'opacity 250ms ease, color 200ms ease',
-  // Hide placeholder text visually but keep space reserved
-  color      : 'transparent',
-},
-
-  /* Sidebar */
-  sidebar: { position: 'sticky', top: 80 },
-  sideCard: {
-    background: 'var(--dark-700)',
-    border: '1px solid var(--border-card)',
-    borderRadius: 'var(--radius-lg)',
-    padding: '18px 20px',
-  },
-  sideCardTitle: {
-    fontSize: '0.7rem', fontWeight: 700,
-    letterSpacing: '0.08em', textTransform: 'uppercase',
-    color: 'var(--text-muted)', marginBottom: 14,
-  },
-  dl: { display: 'flex', flexDirection: 'column' },
-  dlRow: {
-    display: 'flex', justifyContent: 'space-between',
-    padding: '7px 0',
-    borderBottom: '1px solid var(--border-subtle)',
-  },
-  dlKey: { fontSize: '0.82rem', color: 'var(--text-muted)' },
-  dlVal: {
-    fontSize: '0.82rem', fontWeight: 600,
+    fontSize: '0.95rem', fontWeight: 700,
     color: 'var(--text-primary)',
+    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
   },
-  gateRow: {
-    display: 'flex', justifyContent: 'space-between',
-    alignItems: 'center', padding: '8px 0',
-    borderBottom: '1px solid var(--border-subtle)',
+  cardEmail: {
+    fontSize: '0.75rem', color: 'var(--text-muted)',
+    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
   },
-  gateLabel: { fontSize: '0.82rem', color: 'var(--text-muted)' },
-  gateRight: { display: 'flex', alignItems: 'center', gap: 8 },
-  gateValue: {
+  segBadge: {
+    fontSize: '0.68rem', fontWeight: 700,
+    padding: '3px 8px', borderRadius: 99,
+    flexShrink: 0, letterSpacing: '0.03em',
+  },
+  statsRow: {
+    display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: 6, marginBottom: 8,
+  },
+  statChip: {
+    display: 'flex', flexDirection: 'column',
+    gap: 1, textAlign: 'center',
+    background: 'var(--dark-600)',
+    borderRadius: 'var(--radius-sm)',
+    padding: '6px 4px',
+  },
+  statVal: {
+    fontFamily: 'var(--font-display)',
     fontSize: '0.82rem', fontWeight: 700,
     color: 'var(--text-primary)',
   },
-  gatePill: {
-    fontSize: '0.75rem', fontWeight: 700,
-    padding: '2px 8px', borderRadius: 99,
+  statKey: {
+    fontSize: '0.62rem', color: 'var(--text-muted)',
+    textTransform: 'uppercase', letterSpacing: '0.03em',
+  },
+  cardHint: {
+    fontSize: '0.75rem', color: 'var(--pink-400)',
+    fontWeight: 600, marginTop: 10,
+    opacity: 0.7,
   },
 
-  /* Drift alert */
-  driftAlert: {
-    display: 'flex', gap: 12,
-    padding: '14px 16px', borderRadius: 'var(--radius-md)',
-    background: 'rgba(251,191,36,0.08)',
-    border: '1px solid rgba(251,191,36,0.25)',
-    marginBottom: 20,
+  /* Probability */
+  probRow: { display: 'flex', alignItems: 'center', gap: 10 },
+  probTrack: {
+    flex: 1, height: 5, borderRadius: 99,
+    background: 'var(--dark-600)', overflow: 'hidden',
   },
-  alertTitle: {
-    fontSize: '0.9rem', fontWeight: 700,
-    color: 'var(--amber-400)', marginBottom: 4,
-  },
-  alertBody: {
-    fontSize: '0.82rem', color: 'var(--text-muted)',
-    lineHeight: 1.6,
+  probFill: { height: '100%', borderRadius: 99 },
+  probLabel: {
+    fontFamily: 'var(--font-display)',
+    fontSize: '0.82rem', fontWeight: 700,
+    minWidth: 40, textAlign: 'right',
   },
 
-  /* Empty state */
+  /* Recommendation panel */
+  panel: {
+    background: 'var(--dark-700)',
+    border: '1px solid var(--border-card)',
+    borderRadius: 'var(--radius-xl)',
+    position: 'sticky', top: 120,
+    maxHeight: 'calc(100vh - 140px)',
+    overflowY: 'auto',
+  },
+  panelHeader: {
+    display: 'flex', alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '16px 20px',
+    borderBottom: '1px solid var(--border-subtle)',
+    position: 'sticky', top: 0,
+    background: 'var(--dark-700)',
+    borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0',
+    zIndex: 10,
+  },
+  panelTitle: {
+    fontFamily: 'var(--font-display)',
+    fontSize: '0.9rem', fontWeight: 800,
+    color: 'var(--text-primary)',
+    textTransform: 'uppercase', letterSpacing: '0.06em',
+  },
+  closeBtn: {
+    background: 'var(--dark-600)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--text-muted)', cursor: 'pointer',
+    width: 28, height: 28, fontSize: '0.8rem',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontFamily: 'var(--font-body)',
+  },
+  panelLoading: {
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', gap: 12,
+    padding: '48px 20px',
+  },
+  panelError: {
+    padding: '16px 20px',
+    color: 'var(--pink-300)', fontSize: '0.85rem',
+  },
+  panelContent: { padding: '16px 20px 20px' },
+  panelCustomer: { marginBottom: 14 },
+  panelCustomerName: {
+    fontFamily: 'var(--font-display)',
+    fontSize: '1.1rem', fontWeight: 800,
+    color: 'var(--text-primary)',
+  },
+  panelCustomerSub: {
+    fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2,
+  },
+  holdingsWrap: {
+    marginBottom: 16, paddingBottom: 16,
+    borderBottom: '1px solid var(--border-subtle)',
+  },
+  holdingsLabel: {
+    fontSize: '0.68rem', fontWeight: 700,
+    letterSpacing: '0.08em', textTransform: 'uppercase',
+    color: 'var(--text-muted)', marginBottom: 8, display: 'block',
+  },
+  holdingsTags: { display: 'flex', flexWrap: 'wrap', gap: 6 },
+  holdingTag: {
+    background: 'rgba(56,189,248,0.08)',
+    border: '1px solid rgba(56,189,248,0.20)',
+    borderRadius: 99, padding: '3px 10px',
+    fontSize: '0.7rem', color: 'var(--blue-400)', fontWeight: 500,
+  },
+  panelRecsLabel: {
+    fontSize: '0.68rem', fontWeight: 700,
+    letterSpacing: '0.08em', textTransform: 'uppercase',
+    color: 'var(--text-muted)', marginBottom: 10,
+  },
+  panelRecCard: {
+    background: 'var(--dark-600)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-md)',
+    padding: '12px 14px',
+  },
+  panelRecTop: {
+    display: 'flex', gap: 6,
+    alignItems: 'center', marginBottom: 8,
+  },
+  rankBadge: {
+    display: 'inline-block', borderRadius: 99,
+    padding: '2px 8px', fontSize: '0.68rem',
+    fontWeight: 800, letterSpacing: '0.06em',
+  },
+  catBadge: {
+    display: 'inline-block', borderRadius: 99,
+    padding: '2px 9px', fontSize: '0.68rem', fontWeight: 600,
+  },
+  panelRecName: {
+    fontFamily: 'var(--font-display)',
+    fontSize: '0.88rem', fontWeight: 700,
+    color: 'var(--text-primary)', marginBottom: 2,
+  },
+  panelRecCode: {
+    display: 'block', fontSize: '0.68rem',
+    fontFamily: 'monospace', color: 'var(--text-muted)', marginBottom: 8,
+  },
+
+  /* Empty / loading */
   emptyState: {
-    textAlign: 'center', padding: '80px 20px',
+    textAlign: 'center', padding: '60px 20px',
   },
-  emptyIcon: {
-    fontSize: '2.5rem', marginBottom: 16, opacity: 0.4,
-  },
+  emptyIcon: { fontSize: '2rem', marginBottom: 12, opacity: 0.35 },
   emptyTitle: {
     fontFamily: 'var(--font-display)',
-    fontSize: '1.2rem', fontWeight: 700,
-    color: 'var(--text-secondary)', marginBottom: 8,
+    fontSize: '1.1rem', fontWeight: 700,
+    color: 'var(--text-secondary)', marginBottom: 6,
   },
   emptySub: {
-    fontSize: '0.9rem', color: 'var(--text-muted)',
+    fontSize: '0.88rem', color: 'var(--text-muted)',
+    maxWidth: 360, margin: '0 auto',
+  },
+  spinner: {
+    width: 32, height: 32, borderRadius: '50%',
+    border: '3px solid var(--border-card)',
+    borderTopColor: 'var(--pink-400)',
+    margin: '0 auto 8px',
   },
 };
