@@ -6,6 +6,7 @@ from extensions import db, cors
 from blueprints.customer_routes import customer_bp
 from blueprints.feedback_routes import feedback_bp
 from blueprints.health_routes   import health_bp
+from api.blueprints.onboarding_routes import onboarding_bp
 from database import CustomerProfile
 import click
 
@@ -24,10 +25,14 @@ def create_app():
     
     db.init_app(app)
     cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
-
+    # Core Application Blueprint Registries
+    # Registers your existing operational tracking endpoints for customer profiles,
+    # feedback collection, and health checks.
     app.register_blueprint(customer_bp)
     app.register_blueprint(feedback_bp)
     app.register_blueprint(health_bp)
+    # Connects the new isolated post-onboarding inference route stack to the WSGI loop
+    app.register_blueprint(onboarding_bp)
 
     @app.cli.command("init-db")
     def init_db():

@@ -30,6 +30,7 @@ const fadeUp = {
 
 const stagger = { show: { transition: { staggerChildren: 0.09 } } };
 
+// Pipeline stages with notebook links, descriptions, and colors
 const NOTEBOOKS = [
   { nb: 'ST', title: 'Data Ingestion',
     color: 'var(--pink-400)' },
@@ -42,12 +43,16 @@ const NOTEBOOKS = [
 
   { nb: 'ST', title: 'Feature Engineering',
     color: 'var(--amber-400)' },
+
   { nb: 'ST', title: 'Split & Formatting',
     color: 'var(--pink-300)' },
+
   { nb: 'ST', title: 'Model Training',
     color: 'var(--blue-300)' },
+
   { nb: 'ST', title: 'Evaluation',
     color: 'var(--green-400)' },
+    
   { nb: 'ST', title: 'Monitoring Simulation',
     color: 'var(--amber-400)' },
 ];
