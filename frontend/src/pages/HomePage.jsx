@@ -16,47 +16,11 @@ const stagger = {
 const STATS = [
   { value: '922k',  label: 'Active customers',  color: 'var(--pink-400)'  },
   { value: '24',    label: 'Product classes',    color: 'var(--blue-400)'  },
-  { value: '0.699', label: 'MAP@7 score',        color: 'var(--green-400)' },
-  { value: '476',   label: 'Boost rounds',       color: 'var(--amber-400)' },
+  
 ];
 
-const FEATURES = [
-  {
-    icon: '⚡',
-    title: 'Real-time Inference',
-    desc: 'Query the Flask API with a customer ID and receive ranked product probabilities in milliseconds via the XGBoost model.',
-    color: 'var(--pink-400)',
-  },
-  {
-    icon: '🧠',
-    title: 'Gradient Boosting Core',
-    desc: 'XGBoost multi:softprob objective computes a 24-class probability distribution per customer. Early stopping at round 476.',
-    color: 'var(--blue-400)',
-  },
-  {
-    icon: '📈',
-    title: 'MAP@7 Evaluation',
-    desc: 'Validation MAP@7 of 0.699 — model ranked in top tier of Santander Kaggle competition baseline. AUC-ROC 0.894.',
-    color: 'var(--green-400)',
-  },
-  {
-    icon: '🔬',
-    title: '8-Stage Pipeline',
-    desc: 'Ingestion → Cohort → Target → Feature Engineering → Split → Train → Evaluate → Monitor. Every stage in a notebook.',
-    color: 'var(--amber-400)',
-  },
-];
 
-const PIPELINE = [
-  { num: '01', title: 'Data Ingestion',   desc: '13.3M rows → Parquet' },
-  { num: '02', title: 'Cohort Selection', desc: '922k active customers' },
-  { num: '03', title: 'Target Eng.',      desc: 'ΔP difference vector'  },
-  { num: '04', title: 'Feature Eng.',     desc: 'Lag-1, Lag-2 features' },
-  { num: '05', title: 'Split & Format',   desc: 'DMatrix 80/20 split'   },
-  { num: '06', title: 'Model Training',   desc: 'XGBoost 476 rounds'    },
-  { num: '07', title: 'Evaluation',       desc: 'MAP@7 = 0.699'         },
-  { num: '08', title: 'Monitoring',       desc: 'PSI + KS drift gates'  },
-];
+
 
 export default function HomePage() {
   return (
@@ -97,12 +61,6 @@ export default function HomePage() {
               Engine
             </motion.h1>
 
-            {/* Sub */}
-            <motion.p variants={fadeUp} style={styles.heroSub}>
-              An end-to-end gradient-boosting system predicting which
-              new financial products 922k customers will add next month.
-              Trained on the Santander Kaggle dataset.
-            </motion.p>
 
             {/* CTAs */}
             {/* ── CTA BUTTONS — all three in one aligned row ── */}
@@ -159,89 +117,7 @@ export default function HomePage() {
         <div className="divider" />
       </section>
 
-      {/* ── Feature cards ── */}
-      <section className="page-section container">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-        >
-          <h2 className="section-title">What this system does</h2>
-          <p className="section-subtitle">
-            A complete ML pipeline from raw data to live predictions.
-          </p>
-        </motion.div>
-
-        <motion.div
-          style={styles.featureGrid}
-          variants={stagger}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.2 }}
-        >
-          {FEATURES.map(({ icon, title, desc, color }) => (
-            <motion.div
-              key={title}
-              variants={fadeUp}
-              whileHover={{
-                y: -6, scale: 1.02,
-                transition: { type: 'spring', stiffness: 300, damping: 20 },
-              }}
-              style={styles.featureCard}
-              className="card"
-            >
-              {/* top accent line */}
-              <div style={{ ...styles.cardAccent, background: color }} />
-              <span style={{ ...styles.featureIcon, color }}>{icon}</span>
-              <h3 style={styles.featureTitle}>{title}</h3>
-              <p style={styles.featureDesc}>{desc}</p>
-            </motion.div>
-          ))}
-        </motion.div>
-      </section>
-
-      {/* ── Pipeline steps ── */}
-      <section style={styles.pipelineSection}>
-        <div className="container">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            style={{ marginBottom: 48 }}
-          >
-            <h2 className="section-title">8-Stage Pipeline</h2>
-            <p className="section-subtitle">
-              Every stage is a self-contained Jupyter notebook.
-            </p>
-          </motion.div>
-
-          <motion.div
-            style={styles.pipelineGrid}
-            variants={stagger}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.1 }}
-          >
-            {PIPELINE.map(({ num, title, desc }) => (
-              <motion.div
-                key={num}
-                variants={fadeUp}
-                whileHover={{
-                  borderColor: 'var(--pink-400)',
-                  transition: { duration: 0.15 },
-                }}
-                style={styles.pipelineCard}
-              >
-                <span style={styles.pipelineNum}>{num}</span>
-                <span style={styles.pipelineTitle}>{title}</span>
-                <span style={styles.pipelineDesc}>{desc}</span>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
+      
 
       {/* ── CTA strip ── */}
       <section style={styles.ctaStrip}>

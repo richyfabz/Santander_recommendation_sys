@@ -727,7 +727,7 @@ export default function SearchPage() {
               Product <span className="gradient-text">Recommender</span>
             </motion.h1>
             <motion.p variants={fadeUp} style={styles.pageSub}>
-              Three ways to explore recommendations — search by customer,
+              Three ways to explore recommendations search by customer,
               find candidates for a product, or browse by segment.
             </motion.p>
           </motion.div>

@@ -9,26 +9,19 @@ const fadeUp = {
 
 const stagger = { show: { transition: { staggerChildren: 0.08 } } };
 
-const METRICS = [
-  { label: 'MAP@7',          value: '0.699', sub: 'Validation set',    color: 'var(--pink-400)'  },
-  { label: 'AUC-ROC',        value: '0.894', sub: 'Multi-class OVR',   color: 'var(--blue-400)'  },
-  { label: 'Best Logloss',   value: '1.138', sub: 'Val log-loss',      color: 'var(--green-400)' },
-  { label: 'Best Iteration', value: '476',   sub: 'Early stop @ 477',  color: 'var(--amber-400)' },
-  { label: 'Train Rows',     value: '27,096', sub: '80% split',        color: 'var(--pink-300)'  },
-  { label: 'Val Rows',       value: '6,774',  sub: '20% split',        color: 'var(--blue-300)'  },
-];
+
 
 const PER_PRODUCT = [
-  { name: 'Current Account',      precision: 0.73, recall: 0.87, f1: 0.79, support: 609  },
-  { name: 'Payroll Account',      precision: 0.37, recall: 0.57, f1: 0.45, support: 435  },
-  { name: 'Junior Account',       precision: 1.00, recall: 0.88, f1: 0.93, support: 8    },
-  { name: 'e-Account',            precision: 0.62, recall: 0.68, f1: 0.65, support: 487  },
-  { name: 'Credit Card',          precision: 0.66, recall: 0.69, f1: 0.67, support: 840  },
-  { name: 'Payroll',              precision: 0.13, recall: 0.11, f1: 0.12, support: 1055 },
-  { name: 'Pensions',             precision: 0.14, recall: 0.10, f1: 0.12, support: 1096 },
-  { name: 'Direct Debit',         precision: 0.79, recall: 0.72, f1: 0.75, support: 2011 },
-  { name: 'Particular Account',   precision: 0.30, recall: 0.48, f1: 0.37, support: 56   },
-  { name: 'Taxes',                precision: 0.10, recall: 0.36, f1: 0.15, support: 45   },
+  { name: 'Current Account',      model_accuracy: 0.73, percentage_of_remembrance: 0.87, harmonic_mean: 0.79, support: 609  },
+  { name: 'Payroll Account',      model_accuracy: 0.37, percentage_of_remembrance: 0.57, harmonic_mean: 0.45, support: 435  },
+  { name: 'Junior Account',       model_accuracy: 1.00, percentage_of_remembrance: 0.88, harmonic_mean: 0.93, support: 8    },
+  { name: 'e-Account',            model_accuracy: 0.62, percentage_of_remembrance: 0.68, harmonic_mean: 0.65, support: 487  },
+  { name: 'Credit Card',          model_accuracy: 0.66, percentage_of_remembrance: 0.69, harmonic_mean: 0.67, support: 840  },
+  { name: 'Payroll',              model_accuracy: 0.13, percentage_of_remembrance: 0.11, harmonic_mean: 0.12, support: 1055 },
+  { name: 'Pensions',             model_accuracy: 0.14, percentage_of_remembrance: 0.10, harmonic_mean: 0.12, support: 1096 },
+  { name: 'Direct Debit',         model_accuracy: 0.79, percentage_of_remembrance: 0.72, harmonic_mean: 0.75, support: 2011 },
+  { name: 'Particular Account',   model_accuracy: 0.30, percentage_of_remembrance: 0.48, harmonic_mean: 0.37, support: 56   },
+  { name: 'Taxes',                model_accuracy: 0.10, percentage_of_remembrance: 0.36, harmonic_mean: 0.15, support: 45   },
 ];
 
 function F1Bar({ value, color }) {
@@ -61,10 +54,7 @@ export default function MetricsPage() {
             <motion.h1 variants={fadeUp} style={styles.title}>
               Performance <span className="gradient-text">Metrics</span>
             </motion.h1>
-            <motion.p variants={fadeUp} style={styles.sub}>
-              XGBoost multi-class classifier evaluation on 6,774 validation
-              rows across 24 product classes.
-            </motion.p>
+           
           </motion.div>
         </div>
       </section>
@@ -76,23 +66,7 @@ export default function MetricsPage() {
           whileInView="show" viewport={{ once: true, amount: 0.2 }}
           style={styles.metricsGrid}
         >
-          {METRICS.map(({ label, value, sub, color }) => (
-            <motion.div
-              key={label}
-              variants={fadeUp}
-              whileHover={{
-                y: -5, scale: 1.03,
-                transition: { type: 'spring', stiffness: 300, damping: 20 },
-              }}
-              className="card"
-              style={styles.metricCard}
-            >
-              <div style={{ ...styles.metricAccent, background: color }} />
-              <span style={{ ...styles.metricValue, color }}>{value}</span>
-              <span style={styles.metricLabel}>{label}</span>
-              <span style={styles.metricSub}>{sub}</span>
-            </motion.div>
-          ))}
+        
         </motion.div>
       </section>
 
@@ -109,7 +83,7 @@ export default function MetricsPage() {
               Per-Product <span className="gradient-text">Performance</span>
             </h2>
             <p className="section-subtitle">
-              Precision, recall, F1-score and support for top products.
+              model accuracy, percentage of remembrance, harmonic mean and support for top products.
             </p>
           </motion.div>
 
@@ -117,9 +91,9 @@ export default function MetricsPage() {
             {/* Header */}
             <div style={styles.tableHeader}>
               <span style={{ flex: 2 }}>Product</span>
-              <span style={styles.col}>Precision</span>
-              <span style={styles.col}>Recall</span>
-              <span style={{ ...styles.col, flex: 1.5 }}>F1</span>
+              <span style={styles.col}>Model Accuracy</span>
+              <span style={styles.col}>Percentage of Remembrance</span>
+              <span style={{ ...styles.col, flex: 1.5 }}>Harmonic Mean</span>
               <span style={styles.col}>Support</span>
             </div>
 
@@ -130,10 +104,10 @@ export default function MetricsPage() {
               whileInView="show"
               viewport={{ once: true, amount: 0.1 }}
             >
-              {PER_PRODUCT.map(({ name, precision, recall, f1, support }) => {
-                const f1Color = f1 >= 0.65
+              {PER_PRODUCT.map(({ name, model_accuracy, percentage_of_remembrance, harmonic_mean, support }) => {
+                const f1Color = harmonic_mean >= 0.65
                   ? 'var(--green-400)'
-                  : f1 >= 0.40
+                  : harmonic_mean >= 0.40
                   ? 'var(--amber-400)'
                   : 'var(--pink-400)';
                 return (
@@ -152,18 +126,18 @@ export default function MetricsPage() {
                     </span>
                     <span style={{ ...styles.col, color: 'var(--text-secondary)',
                       fontSize: '0.85rem' }}>
-                      {precision.toFixed(2)}
+                      {model_accuracy.toFixed(2)}
                     </span>
                     <span style={{ ...styles.col, color: 'var(--text-secondary)',
                       fontSize: '0.85rem' }}>
-                      {recall.toFixed(2)}
+                      {percentage_of_remembrance.toFixed(2)}
                     </span>
                     <span style={{ ...styles.col, flex: 1.5 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <F1Bar value={f1} color={f1Color} />
+                        <F1Bar value={harmonic_mean} color={f1Color} />
                         <span style={{ color: f1Color, fontSize: '0.82rem',
                           fontWeight: 700, minWidth: 32 }}>
-                          {f1.toFixed(2)}
+                          {harmonic_mean.toFixed(2)}
                         </span>
                       </div>
                     </span>
@@ -177,17 +151,7 @@ export default function MetricsPage() {
             </motion.div>
           </div>
 
-          {/* Overall row */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            style={styles.overallRow}
-          >
-            <span style={styles.overallLabel}>Overall Accuracy</span>
-            <span style={styles.overallValue}>0.51</span>
-            <span style={styles.overallSub}>across 6,774 validation samples</span>
-          </motion.div>
+          
         </div>
         <div className="divider" />
       </section>

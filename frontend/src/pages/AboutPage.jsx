@@ -1,4 +1,25 @@
 // AboutPage — project overview, pipeline cards, tech stack
+/**
+ * const NOTEBOOKS = [
+  { nb: 'ST', title: 'Data Ingestion',
+    color: 'var(--pink-400)' },
+  
+  { nb: 'ST', title: 'Target Engineering',
+    color: 'var(--green-400)' },
+
+  { nb: 'ST', title: 'Feature Engineering',
+    color: 'var(--amber-400)' },
+
+  { nb: 'ST', title: 'Model Training',
+    color: 'var(--blue-300)' },
+
+  { nb: 'ST', title: 'Evaluation',
+    color: 'var(--green-400)' },
+
+  { nb: 'ST', title: 'Frontend & API',
+    color: 'var(--amber-400)' },
+];
+ */
 import { motion } from 'framer-motion';
 
 const fadeUp = {
@@ -10,42 +31,28 @@ const fadeUp = {
 const stagger = { show: { transition: { staggerChildren: 0.09 } } };
 
 const NOTEBOOKS = [
-  { nb: 'NB 01', title: 'Data Ingestion',
-    desc: '13.3M rows from train_ver2.csv streamed via chunked pandas and persisted to Parquet. Schema enforced ncodpers int32, product cols Int8.',
+  { nb: 'ST', title: 'Data Ingestion',
     color: 'var(--pink-400)' },
-  { nb: 'NB 02', title: 'Cohort Selection',
-    desc: '3-month active window (Mar–May 2016). 922k customers present in all three months retained. Cohort confirmed representative of full dataset.',
+
+  { nb: 'ST', title: 'Cohort Selection',
     color: 'var(--blue-400)' },
-  { nb: 'NB 03', title: 'Target Engineering',
-    desc: 'ΔP difference vector computed per customer per month. Net-new product additions (ΔP=1) become training targets. One row per new product.',
+
+  { nb: 'ST', title: 'Target Engineering',
     color: 'var(--green-400)' },
-  { nb: 'NB 04', title: 'Feature Engineering',
-    desc: 'Lag-1 and Lag-2 product ownership columns appended (48 lag columns). product_velocity and total_products_held_lag_1 computed. Renta imputed via province median.',
+
+  { nb: 'ST', title: 'Feature Engineering',
     color: 'var(--amber-400)' },
-  { nb: 'NB 05', title: 'Split & Formatting',
-    desc: 'Dataset shuffled (seed=42) before 80/20 split. Stratification confirmed: 21 classes in train, 18 in val. XGBoost DMatrix built with sample weights.',
+  { nb: 'ST', title: 'Split & Formatting',
     color: 'var(--pink-300)' },
-  { nb: 'NB 06', title: 'Model Training',
-    desc: 'XGBoost multi:softprob, 24 classes, eta=0.05, max_depth=6. Early stopping at round 476. Best val log-loss: 1.138. Training time: 11 min on CPU.',
+  { nb: 'ST', title: 'Model Training',
     color: 'var(--blue-300)' },
-  { nb: 'NB 07', title: 'Evaluation',
-    desc: 'MAP@7 = 0.699 · AUC-ROC = 0.894 · Catalog coverage = 55.4%. All three deployment gates passed. Metrics logged to MLflow.',
+  { nb: 'ST', title: 'Evaluation',
     color: 'var(--green-400)' },
-  { nb: 'NB 08', title: 'Monitoring Simulation',
-    desc: 'PSI and KS drift detectors validated on synthetic economic shift scenario. CTR trigger fired at 40% corruption. Fairness gap computed across age bands.',
+  { nb: 'ST', title: 'Monitoring Simulation',
     color: 'var(--amber-400)' },
 ];
 
-const STACK = [
-  { name: 'XGBoost',       role: 'Gradient boosting classifier',   color: 'var(--pink-400)'  },
-  { name: 'Flask',         role: 'REST API serving layer',          color: 'var(--blue-400)'  },
-  { name: 'React 18',      role: 'Frontend UI framework',           color: 'var(--blue-300)'  },
-  { name: 'Pandas',        role: 'Data manipulation & feature eng', color: 'var(--green-400)' },
-  { name: 'PyArrow',       role: 'Parquet columnar storage',        color: 'var(--amber-400)' },
-  { name: 'MLflow',        role: 'Experiment tracking',             color: 'var(--pink-300)'  },
-  { name: 'Framer Motion', role: 'UI animation library',            color: 'var(--blue-400)'  },
-  { name: 'Scikit-learn',  role: 'Preprocessing & metrics',         color: 'var(--green-400)' },
-];
+
 
 export default function AboutPage() {
   return (
@@ -68,21 +75,12 @@ export default function AboutPage() {
             <motion.p variants={fadeUp} style={styles.sub}>
               An end-to-end bank product recommendation system built on the{' '}
               <span style={{ color: 'var(--pink-300)' }}>
-                Santander Product Recommendation Kaggle competition dataset.
+                Santander Product Recommendation dataset.
               </span>{' '}
-              This is a personal ML portfolio project not affiliated with
-              or endorsed by Santander Group.
+              The project includes data processing, model training, evaluation, and a frontend for exploring personalized recommendations.
             </motion.p>
 
-            {/* Disclaimer */}
-            <motion.div variants={fadeUp} style={styles.disclaimer}>
-              <span style={styles.disclaimerIcon}>ℹ️</span>
-              <p style={styles.disclaimerText}>
-                This project uses the publicly available Santander dataset
-                from Kaggle for educational and portfolio purposes only.
-                Not affiliated with Banco Santander S.A.
-              </p>
-            </motion.div>
+           
           </motion.div>
         </div>
       </section>
@@ -132,47 +130,7 @@ export default function AboutPage() {
           ))}
         </motion.div>
       </section>
-
-      {/* ── Tech stack ── */}
-      <section style={styles.stackSection}>
-        <div className="divider" />
-        <div className="container" style={{ padding: '64px 24px' }}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="section-title">Tech Stack</h2>
-            <p className="section-subtitle">
-              Every library chosen for a specific engineering reason.
-            </p>
-          </motion.div>
-
-          <motion.div
-            style={styles.stackGrid}
-            variants={stagger}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.2 }}
-          >
-            {STACK.map(({ name, role, color }) => (
-              <motion.div
-                key={name}
-                variants={fadeUp}
-                whileHover={{
-                  scale: 1.04, borderColor: color,
-                  transition: { duration: 0.15 },
-                }}
-                style={styles.stackCard}
-              >
-                <span style={{ ...styles.stackName, color }}>{name}</span>
-                <span style={styles.stackRole}>{role}</span>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-        <div className="divider" />
-      </section>
+      
 
     </main>
   );

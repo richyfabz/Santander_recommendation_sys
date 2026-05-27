@@ -9,7 +9,7 @@ const LINKS = [
   { to: '/about',   label: 'About'     },
 ];
 
-const STACK = ['XGBoost', 'Flask', 'React', 'Pandas', 'Framer Motion'];
+
 
 export default function Footer() {
   return (
@@ -21,9 +21,7 @@ export default function Footer() {
         <div style={styles.brand}>
           <span style={styles.brandName}>RecSys</span>
           <p style={styles.brandDesc}>
-            End-to-end bank product recommendation engine
-            built on the Santander Kaggle dataset.
-            MAP@7 score of 0.699 on validation set.
+            End-to-end bank product recommendation engine.
           </p>
         </div>
 
@@ -38,21 +36,7 @@ export default function Footer() {
           ))}
         </nav>
 
-        {/* Stack */}
-        <div style={styles.stackCol}>
-          <span style={styles.navLabel}>Built with</span>
-          <div style={styles.tags}>
-            {STACK.map(t => (
-              <motion.span
-                key={t}
-                whileHover={{ scale: 1.06, borderColor: 'var(--pink-400)' }}
-                style={styles.tag}
-              >
-                {t}
-              </motion.span>
-            ))}
-          </div>
-        </div>
+
       </div>
 
       {/* Bottom bar */}
