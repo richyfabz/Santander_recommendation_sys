@@ -15,6 +15,7 @@ import MetricsPage   from './pages/MetricsPage' // Metrics page component that d
 import ProfilePage   from './pages/ProfilePage' // Profile page component that shows detailed information about a specific customer, including their profile details and personalized product recommendations
 import OnboardingPage from './pages/OnboardingPage' // Onboarding page component that provides a form for new customers to input their information and receive personalized product recommendations upon submission
 import AboutPage     from './pages/AboutPage'  // About page component that provides information about the project, the team behind it, and the technologies used in building the Santander Recommender System
+import ChatWidget     from './components/ChatWidget';   // Chat widget component that provides an interactive chat interface for users to ask questions and receive assistance related to the recommendation system
 import './index.css'
 
 // Main application component that sets up routing and layout for the frontend of the Santander Recommender System
