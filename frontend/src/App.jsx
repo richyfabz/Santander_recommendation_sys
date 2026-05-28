@@ -13,6 +13,7 @@ import HomePage      from './pages/HomePage'    // Home page component that serv
 import SearchPage    from './pages/SearchPage'  // Search page component that allows users to search for products and view personalized recommendations based on their customer ID
 import MetricsPage   from './pages/MetricsPage' // Metrics page component that displays performance metrics and analytics related to the recommendation system, such as click-through rates and conversion rates
 import ProfilePage   from './pages/ProfilePage' // Profile page component that shows detailed information about a specific customer, including their profile details and personalized product recommendations
+import OnboardingPage from './pages/OnboardingPage' // Onboarding page component that provides a form for new customers to input their information and receive personalized product recommendations upon submission
 import AboutPage     from './pages/AboutPage'  // About page component that provides information about the project, the team behind it, and the technologies used in building the Santander Recommender System
 import './index.css'
 
@@ -29,6 +30,7 @@ export default function App() {
             <Route path="/metrics" element={<MetricsPage />} />
             <Route path="/profile/:id" element={<ProfilePage />} />
             <Route path="/about"   element={<AboutPage  />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
           </Routes>
         </main>
         <Footer />

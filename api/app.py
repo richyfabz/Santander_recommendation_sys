@@ -8,7 +8,10 @@ from blueprints.feedback_routes import feedback_bp
 from blueprints.health_routes   import health_bp
 from api.blueprints.onboarding_routes import onboarding_bp
 from database import CustomerProfile
+from dotenv import load_dotenv
+load_dotenv()
 import click
+
 
 # Application factory and CLI command to seed the feature store with demo customers
 # The init-db command drops all tables, recreates the schema, and seeds 25 customers across

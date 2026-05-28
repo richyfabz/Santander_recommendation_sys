@@ -2,11 +2,17 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
+// =====================================================================
+// STAGE A COLD-START ROUTE PATHWAY REGISTRY
+// Injecting the static configuration mapping pointing to /onboarding.
+// Placing it between Home and Recommend for intuitive UX workflow design.
+// =====================================================================
 const NAV_LINKS = [
-  { to: '/',        label: 'Home'      },
-  { to: '/search',  label: 'Recommend' },
-  { to: '/metrics', label: 'Metrics'   },
-  { to: '/about',   label: 'About'     },
+  { to: '/',            label: 'Home'          },
+  { to: '/onboarding',   label: 'New Customer'  }, // <-- ADDED FOR COLD-START STAGE A
+  { to: '/search',      label: 'Recommend'     },
+  { to: '/metrics',     label: 'Metrics'       },
+  { to: '/about',       label: 'About'         },
 ];
 
 function LogoMark() {
@@ -48,6 +54,8 @@ export default function Navbar() {
         {/* Links */}
         <ul style={styles.linkList}>
           {NAV_LINKS.map(({ to, label }) => {
+            // Evaluates path matching to highlight the active tab state.
+            // If the active URI maps directly to '/onboarding', it activates cleanly.
             const active = pathname === to ||
               (to !== '/' && pathname.startsWith(to));
             return (

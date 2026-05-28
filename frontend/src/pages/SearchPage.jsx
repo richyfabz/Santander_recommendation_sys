@@ -536,7 +536,7 @@ function ProductExplorerMode({ onSelectCustomer }) {
   );
 }
 
-// ── Mode 3: Segment Analysis ──────────────────────────────────────────────────
+//  Mode 3: Segment Analysis 
 function SegmentAnalysisMode({ onSelectCustomer }) {
   const [segments,  setSegments]  = useState([]);
   const [selected,  setSelected]  = useState(null);
@@ -710,7 +710,7 @@ export default function SearchPage() {
   return (
     <main style={{ background: 'var(--bg-page)', minHeight: '100vh' }}>
 
-      {/* ── Page header ── */}
+      {/*  Page header */}
       <section style={styles.header}>
         <div className="grid-bg" />
         <div style={styles.orb} />

@@ -1,25 +1,5 @@
 // AboutPage — project overview, pipeline cards, tech stack
-/**
- * const NOTEBOOKS = [
-  { nb: 'ST', title: 'Data Ingestion',
-    color: 'var(--pink-400)' },
-  
-  { nb: 'ST', title: 'Target Engineering',
-    color: 'var(--green-400)' },
 
-  { nb: 'ST', title: 'Feature Engineering',
-    color: 'var(--amber-400)' },
-
-  { nb: 'ST', title: 'Model Training',
-    color: 'var(--blue-300)' },
-
-  { nb: 'ST', title: 'Evaluation',
-    color: 'var(--green-400)' },
-
-  { nb: 'ST', title: 'Frontend & API',
-    color: 'var(--amber-400)' },
-];
- */
 import { motion } from 'framer-motion';
 
 const fadeUp = {
@@ -52,7 +32,7 @@ const NOTEBOOKS = [
 
   { nb: 'ST', title: 'Evaluation',
     color: 'var(--green-400)' },
-    
+
   { nb: 'ST', title: 'Monitoring Simulation',
     color: 'var(--amber-400)' },
 ];
