@@ -25,9 +25,11 @@ chat_bp = Blueprint('chat', __name__, url_prefix='/api/v1')
 # Mistral-7B-Instruct is the primary model — it follows system prompts
 # reliably and produces coherent multi-turn conversation
 HF_API_TOKEN  = os.getenv('HF_API_TOKEN')
-PRIMARY_MODEL  = 'meta-llama/Llama-3.1-8B-Instruct'
-FALLBACK_MODEL = 'meta-llama/Meta-Llama-3-8B-Instruct'
-HF_BASE_URL    = 'https://router.huggingface.co/novita/v3/openai/chat/completions'
+GROQ_API_KEY   = os.getenv('GROQ_API_KEY')
+
+PRIMARY_MODEL  = 'llama-3.1-8b-instant'
+FALLBACK_MODEL = 'llama-3.3-70b-versatile'
+HF_BASE_URL    = 'https://api.groq.com/openai/v1/chat/completions'
 
 # ── Brevo configuration ───────────────────────────────────────────────────────
 BREVO_API_KEY  = os.getenv('BREVO_API_KEY')
@@ -107,8 +109,8 @@ def build_mistral_prompt(history, new_message):
 
 def call_huggingface(prompt, model):
     headers = {
-        'Authorization': f'Bearer {HF_API_TOKEN}',
-        'Content-Type' : 'application/json',
+    'Authorization': f'Bearer {GROQ_API_KEY}',
+    'Content-Type' : 'application/json',
     }
     payload = {
         'model': model,
