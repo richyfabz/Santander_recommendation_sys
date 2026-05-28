@@ -35,6 +35,8 @@ export default function App() {
           </Routes>
         </main>
         <Footer />
+        {/* ChatWidget mounts outside Routes so it floats on every page */}
+         <ChatWidget />
       </div>
     </BrowserRouter>
   )

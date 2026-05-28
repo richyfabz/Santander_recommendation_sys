@@ -25,9 +25,9 @@ chat_bp = Blueprint('chat', __name__, url_prefix='/api/v1')
 # Mistral-7B-Instruct is the primary model — it follows system prompts
 # reliably and produces coherent multi-turn conversation
 HF_API_TOKEN  = os.getenv('HF_API_TOKEN')
-PRIMARY_MODEL = 'mistralai/Mistral-7B-Instruct-v0.2'
-FALLBACK_MODEL= 'HuggingFaceH4/zephyr-7b-beta'
-HF_BASE_URL   = 'https://api-inference.huggingface.co/models'
+PRIMARY_MODEL  = 'meta-llama/Llama-3.1-8B-Instruct'
+FALLBACK_MODEL = 'meta-llama/Meta-Llama-3-8B-Instruct'
+HF_BASE_URL    = 'https://router.huggingface.co/novita/v3/openai/chat/completions'
 
 # ── Brevo configuration ───────────────────────────────────────────────────────
 BREVO_API_KEY  = os.getenv('BREVO_API_KEY')
@@ -106,60 +106,32 @@ def build_mistral_prompt(history, new_message):
 
 
 def call_huggingface(prompt, model):
-    """
-    Send a prompt to a HuggingFace Inference API model and return the reply.
-
-    HuggingFace's free Inference API has rate limits. If the model is
-    loading (cold start), the API returns a 503 with estimated_time.
-    We handle this gracefully with a clear error message.
-
-    Args:
-        prompt: formatted prompt string
-        model: HuggingFace model ID string
-
-    Returns:
-        str: the model's reply text, or None on failure
-    """
-    url     = f"{HF_BASE_URL}/{model}"
     headers = {
         'Authorization': f'Bearer {HF_API_TOKEN}',
         'Content-Type' : 'application/json',
     }
     payload = {
-        'inputs': prompt,
-        'parameters': {
-            'max_new_tokens'  : 300,   # Keep replies concise
-            'temperature'     : 0.7,   # Balanced creativity
-            'top_p'           : 0.9,   # Nucleus sampling
-            'do_sample'       : True,
-            'return_full_text': False, # Only return the new tokens
-        },
+        'model': model,
+        'messages': [
+            {'role': 'system', 'content': SYSTEM_PROMPT},
+            {'role': 'user',   'content': prompt},
+        ],
+        'max_tokens' : 300,
+        'temperature': 0.7,
     }
 
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response = requests.post(HF_BASE_URL, headers=headers, json=payload, timeout=30)
 
-        # Handle model loading — HuggingFace cold-starts free models
         if response.status_code == 503:
-            data = response.json()
-            wait = data.get('estimated_time', 20)
-            logger.warning(f"Model {model} loading, estimated wait: {wait}s")
+            logger.warning(f"Model {model} loading")
             return None
-
         if response.status_code != 200:
             logger.error(f"HuggingFace error {response.status_code}: {response.text}")
             return None
 
         result = response.json()
-
-        # Response is a list of dicts with 'generated_text' key
-        if isinstance(result, list) and len(result) > 0:
-            text = result[0].get('generated_text', '').strip()
-            # Clean up any repeated instruction tokens that leak through
-            text = text.split('[INST]')[0].strip()
-            return text if text else None
-
-        return None
+        return result['choices'][0]['message']['content'].strip()
 
     except requests.exceptions.Timeout:
         logger.error(f"HuggingFace request timed out for model {model}")
@@ -355,7 +327,7 @@ def chat():
         enriched_message = f"{message}\n\n[Context: {context}]"
 
     # Build the formatted prompt from history + new message
-    prompt = build_mistral_prompt(history, enriched_message)
+    prompt = enriched_message
 
     # Try primary model first, fall back to Zephyr if it fails
     reply      = call_huggingface(prompt, PRIMARY_MODEL)

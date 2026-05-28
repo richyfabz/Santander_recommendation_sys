@@ -7,6 +7,7 @@ from blueprints.customer_routes import customer_bp
 from blueprints.feedback_routes import feedback_bp
 from blueprints.health_routes   import health_bp
 from api.blueprints.onboarding_routes import onboarding_bp
+from api.blueprints.chat_routes import chat_bp
 from database import CustomerProfile
 from dotenv import load_dotenv
 load_dotenv()
@@ -36,6 +37,7 @@ def create_app():
     app.register_blueprint(health_bp)
     # Connects the new isolated post-onboarding inference route stack to the WSGI loop
     app.register_blueprint(onboarding_bp)
+    app.register_blueprint(chat_bp)
 
     @app.cli.command("init-db")
     def init_db():
