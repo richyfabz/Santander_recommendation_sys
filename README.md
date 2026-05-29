@@ -427,6 +427,5 @@ Deployment gate status and model metrics.
 
 ---
 
-> This project uses the [Santander Product Recommendation](https://www.kaggle.com/c/santander-product-recommendation)
-> Kaggle competition dataset for educational and portfolio purposes only.
+> This project uses the [Santander Product Recommendation]
 > Not affiliated with Banco Santander S.A.
